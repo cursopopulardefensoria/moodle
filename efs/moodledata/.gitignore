@@ -1,0 +1,6 @@
+cache/*
+localcache/*
+temp/*
+trashdir/*
+sessions/*
+filedir/*
