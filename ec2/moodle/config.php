@@ -20,6 +20,7 @@ $CFG->dboptions = array (
 
 $CFG->wwwroot   = getenv('MOODLE_WWW_ROOT');
 $CFG->dataroot  = getenv('MOODLE_DATA_ROOT');
+$CFG->sslproxy  = getenv('MOODLE_SSL_PROXY');
 $CFG->admin     = 'admin';
 $CFG->tempdir = "/tmp";
 $CFG->localcache = "/tmp";
