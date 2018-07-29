@@ -26,6 +26,14 @@ $CFG->tempdir = "/tmp";
 $CFG->localcache = "/tmp";
 $CFG->cachedir = "/tmp";
 
+/* SMTP Settings */
+$CFG->debugsmtp         = getenv("SMTP_DEBUG_SMTP");
+$CFG->smtphosts         = getenv("SMTP_HOSTS");
+$CFG->smtpsecure        = getenv("SMTP_SECURE");
+$CFG->smtpuser          = getenv("SMTP_USER");
+$CFG->smtppass          = getenv("SMTP_PASSWORD");
+$CFG->divertallemailsto = getenv("SMTP_DIVERT_ALL_EMAILS_TO");
+
 $CFG->directorypermissions = 0777;
 
 require_once(dirname(__FILE__) . '/lib/setup.php');
