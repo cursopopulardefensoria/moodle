@@ -2,3 +2,6 @@ build/*
 !build/.gitkeep
 config.php.private
 rds/*
+env
+docker-compose.yaml
+*.swp
