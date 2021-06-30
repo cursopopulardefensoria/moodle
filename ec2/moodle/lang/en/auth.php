@@ -42,8 +42,8 @@ $string['auth_invalidnewemailkey'] = 'Error: if you are trying to confirm a chan
 $string['auth_multiplehosts'] = 'Multiple hosts OR addresses can be specified (eg host1.com;host2.com;host3.com) or (eg xxx.xxx.xxx.xxx;xxx.xxx.xxx.xxx)';
 $string['auth_notconfigured'] = 'The authentication method {$a} is not configured.';
 $string['auth_outofnewemailupdateattempts'] = 'You have run out of allowed attempts to update your email address. Your update request has been cancelled.';
-$string['auth_passwordisexpired'] = 'Your password is expired. Do you want change your password now?';
-$string['auth_passwordwillexpire'] = 'Your password will expire in {$a} days. Do you want change your password now?';
+$string['auth_passwordisexpired'] = 'Your password has expired. Please change it now.';
+$string['auth_passwordwillexpire'] = 'Your password will expire in {$a} days. Do you want to change your password now?';
 $string['auth_remove_delete'] = 'Full delete internal';
 $string['auth_remove_keep'] = 'Keep internal';
 $string['auth_remove_suspend'] = 'Suspend internal';
@@ -51,7 +51,7 @@ $string['auth_remove_user'] = 'Specify what to do with internal user account dur
 $string['auth_remove_user_key'] = 'Removed ext user';
 $string['auth_sync_suspended']  = 'When enabled, the suspended attribute will be used to update the local user account\'s suspension status.';
 $string['auth_sync_suspended_key'] = 'Synchronize local user suspension status';
-$string['auth_sync_script'] = 'User account syncronisation';
+$string['auth_sync_script'] = 'User account synchronisation';
 $string['auth_updatelocal'] = 'Update local';
 $string['auth_updatelocal_expl'] = '<p><b>Update local:</b> If enabled, the field will be updated (from external auth) every time the user logs in or there is a user synchronization. Fields set to update locally should be locked.</p>';
 $string['auth_updateremote'] = 'Update external';
@@ -95,6 +95,7 @@ $string['forgottenpasswordurl'] = 'Forgotten password URL';
 $string['getanaudiocaptcha'] = 'Get an audio CAPTCHA';
 $string['getanimagecaptcha'] = 'Get an image CAPTCHA';
 $string['getanothercaptcha'] = 'Get another CAPTCHA';
+$string['getrecaptchaapi'] = 'To use reCAPTCHA you must get an API key from <a href=\'https://www.google.com/recaptcha/admin\'>https://www.google.com/recaptcha/admin</a>';
 $string['guestloginbutton'] = 'Guest login button';
 $string['changepassword'] = 'Change password URL';
 $string['changepasswordhelp'] = 'URL of lost password recovery page, which will be sent to users in an email. Note that this setting will have no effect if a forgotten password URL is set in the authentication common settings.';
@@ -131,9 +132,9 @@ $string['pluginnotenabled'] = 'Authentication plugin \'{$a}\' is not enabled.';
 $string['pluginnotinstalled'] = 'Authentication plugin \'{$a}\' is not installed.';
 $string['potentialidps'] = 'Log in using your account on:';
 $string['recaptcha'] = 'reCAPTCHA';
-$string['recaptcha_help'] = 'The CAPTCHA is for preventing abuse from automated programs. Simply enter the words in the box, in order and separated by a space.
+$string['recaptcha_help'] = 'The CAPTCHA is for preventing abuse from automated programs. Follow the instructions to verify you are a person. This could be a box to check, characters presented in an image you must enter or a set of images to select from.
 
-If you are not sure what the words are, you can try getting another CAPTCHA or an audio CAPTCHA.';
+If you are not sure what the images are, you can try getting another CAPTCHA or an audio CAPTCHA.';
 $string['recaptcha_link'] = 'auth/email';
 $string['security_question'] = 'Security question';
 $string['selfregistration'] = 'Self registration';
@@ -155,3 +156,5 @@ $string['update_onlogin'] = 'On every login';
 $string['update_onupdate'] = 'On update';
 $string['user_activatenotsupportusertype'] = 'auth: ldap user_activate() does not support selected usertype: {$a}';
 $string['user_disablenotsupportusertype'] = 'auth: ldap user_disable() does not support selected usertype (..yet)';
+$string['username'] = 'Username';
+$string['username_help'] = 'Please be aware that some authentication plugins will not allow you to change the username.';

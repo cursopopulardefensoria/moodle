@@ -38,7 +38,7 @@ if (!empty($CFG->defaulthomepage) && ($CFG->defaulthomepage == HOMEPAGE_MY) && o
     $urlparams['redirect'] = 0;
 }
 $PAGE->set_url('/', $urlparams);
-$PAGE->set_course($SITE);
+$PAGE->set_pagelayout('frontpage');
 $PAGE->set_other_editing_capability('moodle/course:update');
 $PAGE->set_other_editing_capability('moodle/course:manageactivities');
 $PAGE->set_other_editing_capability('moodle/course:activityvisibility');
@@ -46,11 +46,7 @@ $PAGE->set_other_editing_capability('moodle/course:activityvisibility');
 // Prevent caching of this page to stop confusion when changing page after making AJAX changes.
 $PAGE->set_cacheable(false);
 
-if ($CFG->forcelogin) {
-    require_login();
-} else {
-    user_accesstime_log();
-}
+require_course_login($SITE);
 
 $hassiteconfig = has_capability('moodle/site:config', context_system::instance());
 
@@ -104,7 +100,6 @@ if (file_exists($CFG->dirroot.'/local/hub/lib.php') and get_config('local_hub', 
 
 $PAGE->set_pagetype('site-index');
 $PAGE->set_docs_path('');
-$PAGE->set_pagelayout('frontpage');
 $editing = $PAGE->user_is_editing();
 $PAGE->set_title($SITE->fullname);
 $PAGE->set_heading($SITE->fullname);
@@ -145,7 +140,7 @@ if (!empty($CFG->customfrontpageinclude)) {
         $context = context_course::instance(SITEID);
 
         // If the section name is set we show it.
-        if (!is_null($section->name)) {
+        if (trim($section->name) !== '') {
             echo $OUTPUT->heading(
                 format_string($section->name, true, array('context' => $context)),
                 2,

@@ -188,6 +188,35 @@ class core_cache_testcase extends advanced_testcase {
     }
 
     /**
+     * Tests set_identifiers resets identifiers and static cache
+     */
+    public function test_set_identifiers() {
+        $instance = cache_config_testing::instance();
+        $instance->phpunit_add_definition('phpunit/identifier', array(
+            'mode' => cache_store::MODE_APPLICATION,
+            'component' => 'phpunit',
+            'area' => 'identifier',
+            'simplekeys' => true,
+            'simpledata' => true,
+            'staticacceleration' => true
+        ));
+        $cache = cache::make('phpunit', 'identifier', array('area'));
+        $this->assertTrue($cache->set('contest', 'test data 1'));
+        $this->assertEquals('test data 1', $cache->get('contest'));
+
+        $cache->set_identifiers(array());
+        $this->assertFalse($cache->get('contest'));
+        $this->assertTrue($cache->set('contest', 'empty ident'));
+        $this->assertEquals('empty ident', $cache->get('contest'));
+
+        $cache->set_identifiers(array('area'));
+        $this->assertEquals('test data 1', $cache->get('contest'));
+
+        $cache->set_identifiers(array());
+        $this->assertEquals('empty ident', $cache->get('contest'));
+    }
+
+    /**
      * Tests the default application cache
      */
     public function test_default_application_cache() {
@@ -306,15 +335,17 @@ class core_cache_testcase extends advanced_testcase {
         $this->assertTrue($cache->set($key, $dataobject));
         $this->assertEquals($dataobject, $cache->get($key));
 
-        $specobject = new cache_phpunit_dummy_object('red', 'blue');
+        $starttime = microtime(true);
+        $specobject = new cache_phpunit_dummy_object('red', 'blue', $starttime);
         $this->assertTrue($cache->set($key, $specobject));
         $result = $cache->get($key);
         $this->assertInstanceOf('cache_phpunit_dummy_object', $result);
         $this->assertEquals('red_ptc_wfc', $result->property1);
         $this->assertEquals('blue_ptc_wfc', $result->property2);
+        $this->assertGreaterThan($starttime, $result->propertytime);
 
         // Test array of objects.
-        $specobject = new cache_phpunit_dummy_object('red', 'blue');
+        $specobject = new cache_phpunit_dummy_object('red', 'blue', $starttime);
         $data = new cacheable_object_array(array(
             clone($specobject),
             clone($specobject),
@@ -328,6 +359,8 @@ class core_cache_testcase extends advanced_testcase {
             $this->assertInstanceOf('cache_phpunit_dummy_object', $item);
             $this->assertEquals('red_ptc_wfc', $item->property1);
             $this->assertEquals('blue_ptc_wfc', $item->property2);
+            // Ensure that wake from cache is called in all cases.
+            $this->assertGreaterThan($starttime, $item->propertytime);
         }
 
         // Test set many.
@@ -976,7 +1009,7 @@ class core_cache_testcase extends advanced_testcase {
         $timefile = $CFG->dataroot."/cache/cachestore_file/default_application/phpunit_eventinvalidationtest/las-cache/lastinvalidation-$hash.cache";
         // Make sure the file is correct.
         $this->assertTrue(file_exists($timefile));
-        $timecont = serialize(cache::now() - 60); // Back 60sec in the past to force it to re-invalidate.
+        $timecont = serialize(cache::now(true) - 60); // Back 60sec in the past to force it to re-invalidate.
         make_writable_directory(dirname($timefile));
         file_put_contents($timefile, $timecont);
         $this->assertTrue(file_exists($timefile));
@@ -1002,6 +1035,7 @@ class core_cache_testcase extends advanced_testcase {
 
         // Test 2: Rebuild and test the invalidation of the event via the invalidation cache.
         cache_factory::reset();
+
         $instance = cache_config_testing::instance();
         $instance->phpunit_add_definition('phpunit/eventinvalidationtest', array(
             'mode' => cache_store::MODE_APPLICATION,
@@ -1013,6 +1047,7 @@ class core_cache_testcase extends advanced_testcase {
                 'crazyevent'
             )
         ));
+
         $cache = cache::make('phpunit', 'eventinvalidationtest');
         $this->assertFalse($cache->get('testkey1'));
 
@@ -1020,23 +1055,29 @@ class core_cache_testcase extends advanced_testcase {
 
         // Make a new cache class.  This should should invalidate testkey2.
         $cache = cache::make('phpunit', 'eventinvalidationtest');
-        // Timestamp should have updated to cache::now().
-        $this->assertEquals(cache::now(), $cache->get('lastinvalidation'));
+
+        // Invalidation token should have been reset.
+        $this->assertEquals(cache::get_purge_token(), $cache->get('lastinvalidation'));
 
         // Set testkey2 data.
         $cache->set('testkey2', 'test data 2');
+
         // Backdate the event invalidation time by 30 seconds.
         $invalidationcache = cache::make('core', 'eventinvalidation');
         $invalidationcache->set('crazyevent', array('testkey2' => cache::now() - 30));
+
         // Lastinvalidation should already be cache::now().
-        $this->assertEquals(cache::now(), $cache->get('lastinvalidation'));
+        $this->assertEquals(cache::get_purge_token(), $cache->get('lastinvalidation'));
+
         // Set it to 15 seconds ago so that we know if it changes.
-        $cache->set('lastinvalidation', cache::now() - 15);
+        $cache->set('lastinvalidation', cache::now(true) - 15);
+
         // Make a new cache class.  This should not invalidate anything.
         cache_factory::instance()->reset_cache_instances();
         $cache = cache::make('phpunit', 'eventinvalidationtest');
+
         // Lastinvalidation shouldn't change since it was already newer than invalidation event.
-        $this->assertEquals(cache::now() - 15, $cache->get('lastinvalidation'));
+        $this->assertEquals(cache::now(true) - 15, $cache->get('lastinvalidation'));
 
         // Now set the event invalidation to newer than the lastinvalidation time.
         $invalidationcache->set('crazyevent', array('testkey2' => cache::now() - 5));
@@ -1044,18 +1085,18 @@ class core_cache_testcase extends advanced_testcase {
         cache_factory::instance()->reset_cache_instances();
         $cache = cache::make('phpunit', 'eventinvalidationtest');
         // Lastinvalidation timestamp should have updated to cache::now().
-        $this->assertEquals(cache::now(), $cache->get('lastinvalidation'));
+        $this->assertEquals(cache::get_purge_token(), $cache->get('lastinvalidation'));
 
         // Now simulate a purge_by_event 5 seconds ago.
         $invalidationcache = cache::make('core', 'eventinvalidation');
-        $invalidationcache->set('crazyevent', array('purged' => cache::now() - 5));
+        $invalidationcache->set('crazyevent', array('purged' => cache::now(true) - 5));
         // Set our lastinvalidation timestamp to 15 seconds ago.
-        $cache->set('lastinvalidation', cache::now() - 15);
+        $cache->set('lastinvalidation', cache::now(true) - 15);
         // Make a new cache class.  This should invalidate the cache.
         cache_factory::instance()->reset_cache_instances();
         $cache = cache::make('phpunit', 'eventinvalidationtest');
         // Lastinvalidation timestamp should have updated to cache::now().
-        $this->assertEquals(cache::now(), $cache->get('lastinvalidation'));
+        $this->assertEquals(cache::get_purge_token(), $cache->get('lastinvalidation'));
 
     }
 
@@ -1751,6 +1792,12 @@ class core_cache_testcase extends advanced_testcase {
         $this->assertArrayHasKey('cache_is_searchable', $cache->phpunit_get_store_implements());
     }
 
+    /**
+     * Test static acceleration
+     *
+     * Note: All the assertGreaterThanOrEqual() in this test should be assertGreaterThan() be because of some microtime()
+     * resolution problems under some OSs / PHP versions, we are accepting equal as valid outcome. For more info see MDL-57147.
+     */
     public function test_static_acceleration() {
         $instance = cache_config_testing::instance();
         $instance->phpunit_add_definition('phpunit/accelerated', array(
@@ -1846,6 +1893,43 @@ class core_cache_testcase extends advanced_testcase {
         $this->assertEquals('C', $cache->phpunit_static_acceleration_get('c'));
         $this->assertEquals('D', $cache->phpunit_static_acceleration_get('d'));
         $this->assertEquals('E', $cache->phpunit_static_acceleration_get('e'));
+
+        // Store a cacheable_object, get many times and ensure each time wake_for_cache is used.
+        // Both get and get_many are tested.  Two cache entries are used to ensure the times aren't
+        // confused with multiple calls to get()/get_many().
+        $startmicrotime = microtime(true);
+        $cacheableobject = new cache_phpunit_dummy_object(1, 1, $startmicrotime);
+        $cacheableobject2 = new cache_phpunit_dummy_object(2, 2, $startmicrotime);
+        $this->assertTrue($cache->set('a', $cacheableobject));
+        $this->assertTrue($cache->set('b', $cacheableobject2));
+        $staticaccelerationreturntime = $cache->phpunit_static_acceleration_get('a')->propertytime;
+        $staticaccelerationreturntimeb = $cache->phpunit_static_acceleration_get('b')->propertytime;
+        $this->assertGreaterThanOrEqual($startmicrotime, $staticaccelerationreturntime, 'Restore time of static must be newer.');
+
+        // Reset the static cache without resetting backing store.
+        $cache->phpunit_static_acceleration_purge();
+
+        // Get the value from the backend store, populating the static cache.
+        $cachevalue = $cache->get('a');
+        $this->assertInstanceOf('cache_phpunit_dummy_object', $cachevalue);
+        $this->assertGreaterThanOrEqual($staticaccelerationreturntime, $cachevalue->propertytime);
+        $backingstorereturntime = $cachevalue->propertytime;
+
+        $results = $cache->get_many(array('b'));
+        $this->assertInstanceOf('cache_phpunit_dummy_object', $results['b']);
+        $this->assertGreaterThanOrEqual($staticaccelerationreturntimeb, $results['b']->propertytime);
+        $backingstorereturntimeb = $results['b']->propertytime;
+
+        // Obtain the value again and confirm that static cache is using wake_from_cache.
+        // Upon failure, the times are not adjusted as wake_from_cache is skipped as the
+        // value is stored serialized in the static acceleration cache.
+        $cachevalue = $cache->phpunit_static_acceleration_get('a');
+        $this->assertInstanceOf('cache_phpunit_dummy_object', $cachevalue);
+        $this->assertGreaterThanOrEqual($backingstorereturntime, $cachevalue->propertytime);
+
+        $results = $cache->get_many(array('b'));
+        $this->assertInstanceOf('cache_phpunit_dummy_object', $results['b']);
+        $this->assertGreaterThanOrEqual($backingstorereturntimeb, $results['b']->propertytime);
 
         /** @var cache_phpunit_application $cache */
         $cache = cache::make('phpunit', 'accelerated2');
@@ -2094,4 +2178,103 @@ class core_cache_testcase extends advanced_testcase {
         $this->assertEquals(0, $endstats[$requestid]['stores']['cachestore_static']['sets'] -
             $startstats[$requestid]['stores']['cachestore_static']['sets']);
     }
+
+    public function test_performance_debug_off() {
+        global $CFG;
+        $this->resetAfterTest(true);
+        $CFG->perfdebug = 7;
+
+        $instance = cache_config_testing::instance();
+        $applicationid = 'phpunit/applicationperfoff';
+        $instance->phpunit_add_definition($applicationid, array(
+            'mode' => cache_store::MODE_APPLICATION,
+            'component' => 'phpunit',
+            'area' => 'applicationperfoff'
+        ));
+        $sessionid = 'phpunit/sessionperfoff';
+        $instance->phpunit_add_definition($sessionid, array(
+            'mode' => cache_store::MODE_SESSION,
+            'component' => 'phpunit',
+            'area' => 'sessionperfoff'
+        ));
+        $requestid = 'phpunit/requestperfoff';
+        $instance->phpunit_add_definition($requestid, array(
+            'mode' => cache_store::MODE_REQUEST,
+            'component' => 'phpunit',
+            'area' => 'requestperfoff'
+        ));
+
+        $application = cache::make('phpunit', 'applicationperfoff');
+        $session = cache::make('phpunit', 'sessionperfoff');
+        $request = cache::make('phpunit', 'requestperfoff');
+
+        // Check that no stats are recorded for these definitions yet.
+        $stats = cache_helper::get_stats();
+        $this->assertArrayNotHasKey($applicationid, $stats);
+        $this->assertArrayNotHasKey($sessionid, $stats);
+        $this->assertArrayNotHasKey($requestid, $stats);
+
+        // Trigger cache misses, cache sets and cache hits.
+        $this->assertFalse($application->get('missMe'));
+        $this->assertTrue($application->set('setMe', 1));
+        $this->assertEquals(1, $application->get('setMe'));
+        $this->assertFalse($session->get('missMe'));
+        $this->assertTrue($session->set('setMe', 3));
+        $this->assertEquals(3, $session->get('setMe'));
+        $this->assertFalse($request->get('missMe'));
+        $this->assertTrue($request->set('setMe', 4));
+        $this->assertEquals(4, $request->get('setMe'));
+
+        // Check that no stats are being recorded for these definitions.
+        $endstats = cache_helper::get_stats();
+        $this->assertArrayNotHasKey($applicationid, $endstats);
+        $this->assertArrayNotHasKey($sessionid, $endstats);
+        $this->assertArrayNotHasKey($requestid, $endstats);
+    }
+
+    /**
+     * Tests session cache event purge and subsequent visit in the same request.
+     *
+     * This test simulates a cache being created, a value being set, then the value being purged.
+     * A subsequent use of the same cache is started in the same request which fills the cache.
+     * A new request is started a short time later.
+     * The cache should be filled.
+     */
+    public function test_session_event_purge_same_second() {
+        $instance = cache_config_testing::instance();
+        $instance->phpunit_add_definition('phpunit/eventpurgetest', array(
+            'mode' => cache_store::MODE_SESSION,
+            'component' => 'phpunit',
+            'area' => 'eventpurgetest',
+            'invalidationevents' => array(
+                'crazyevent',
+            )
+        ));
+
+        // Create the cache, set a value, and immediately purge it by event.
+        $cache = cache::make('phpunit', 'eventpurgetest');
+        $cache->set('testkey1', 'test data 1');
+        $this->assertEquals('test data 1', $cache->get('testkey1'));
+        cache_helper::purge_by_event('crazyevent');
+        $this->assertFalse($cache->get('testkey1'));
+
+        // Set up the cache again in the same request and add a new value back in.
+        $factory = \cache_factory::instance();
+        $factory->reset_cache_instances();
+        $cache = cache::make('phpunit', 'eventpurgetest');
+        $cache->set('testkey1', 'test data 2');
+        $this->assertEquals('test data 2', $cache->get('testkey1'));
+
+        // Trick the cache into thinking that this is a new request.
+        cache_phpunit_cache::simulate_new_request();
+        $factory = \cache_factory::instance();
+        $factory->reset_cache_instances();
+
+        // Set up the cache again.
+        // This is a subsequent request at a new time, so we instead the invalidation time will be checked.
+        // The invalidation time should match the last purged time and the cache will not be re-purged.
+        $cache = cache::make('phpunit', 'eventpurgetest');
+        $this->assertEquals('test data 2', $cache->get('testkey1'));
+    }
+
 }

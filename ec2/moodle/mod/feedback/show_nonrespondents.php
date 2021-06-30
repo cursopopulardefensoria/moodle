@@ -233,7 +233,7 @@ if (!$students) {
         $profilelink = '<strong><a href="'.$profile_url.'">'.fullname($user).'</a></strong>';
         $data = array ($OUTPUT->user_picture($user, array('courseid'=>$course->id)), $profilelink);
 
-        if ($DB->record_exists('feedback_completedtmp', array('userid'=>$user->id))) {
+        if ($DB->record_exists('feedback_completedtmp', array('userid' => $user->id, 'feedback' => $feedback->id))) {
             $data[] = get_string('started', 'feedback');
         } else {
             $data[] = get_string('not_started', 'feedback');
@@ -267,7 +267,7 @@ if (!$students) {
         echo '<legend class="ftoggler">'.get_string('send_message', 'feedback').'</legend>';
         echo '<div>';
         echo '<label for="feedback_subject">'.get_string('subject', 'feedback').'&nbsp;</label>';
-        echo '<input type="text" id="feedback_subject" size="50" maxlength="255" name="subject" value="'.$subject.'" />';
+        echo '<input type="text" id="feedback_subject" size="50" maxlength="255" name="subject" value="'.s($subject).'" />';
         echo '</div>';
         print_textarea(true, 15, 25, 30, 10, "message", $message);
         print_string('formathtml');

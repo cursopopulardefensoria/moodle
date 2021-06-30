@@ -695,7 +695,7 @@ class auth_plugin_ldap extends auth_plugin_base {
             array_push($contexts, $this->config->create_context);
         }
 
-        $ldap_pagedresults = ldap_paged_results_supported($this->config->ldap_version);
+        $ldap_pagedresults = ldap_paged_results_supported($this->config->ldap_version, $ldapconnection);
         $ldap_cookie = '';
         foreach ($contexts as $context) {
             $context = trim($context);
@@ -1540,7 +1540,7 @@ class auth_plugin_ldap extends auth_plugin_base {
         }
 
         $ldap_cookie = '';
-        $ldap_pagedresults = ldap_paged_results_supported($this->config->ldap_version);
+        $ldap_pagedresults = ldap_paged_results_supported($this->config->ldap_version, $ldapconnection);
         foreach ($contexts as $context) {
             $context = trim($context);
             if (empty($context)) {
@@ -1762,7 +1762,8 @@ class auth_plugin_ldap extends auth_plugin_base {
 
         // Here we want to trigger the whole authentication machinery
         // to make sure no step is bypassed...
-        $user = authenticate_user_login($username, $key);
+        $reason = null;
+        $user = authenticate_user_login($username, $key, false, $reason, false);
         if ($user) {
             complete_user_login($user);
 
@@ -1771,7 +1772,7 @@ class auth_plugin_ldap extends auth_plugin_base {
             unset_cache_flag($this->pluginconfig.'/ntlmsess', $key);
 
             // Redirection
-            if (user_not_fully_set_up($USER)) {
+            if (user_not_fully_set_up($USER, true)) {
                 $urltogo = $CFG->wwwroot.'/user/edit.php';
                 // We don't delete $SESSION->wantsurl yet, so we get there later
             } else if (isset($SESSION->wantsurl) and (strpos($SESSION->wantsurl, $CFG->wwwroot) === 0)) {
