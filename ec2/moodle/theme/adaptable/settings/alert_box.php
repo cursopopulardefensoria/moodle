@@ -17,17 +17,39 @@
 /**
  * Version details
  *
- * @package    theme_adaptable
- * @copyright 2015 Jeremy Hopkins (Coventry University)
- * @copyright 2015 Fernando Acedo (3-bits.com)
+ * @package   theme_adaptable
+ * @copyright 2015-2016 Jeremy Hopkins (Coventry University)
+ * @copyright 2015-2016 Fernando Acedo (3-bits.com)
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  *
  */
+
+defined('MOODLE_INTERNAL') || die;
 
 // Alert Section.
 $temp = new admin_settingpage('theme_adaptable_frontpage_alert', get_string('frontpagealertsettings', 'theme_adaptable'));
 $temp->add(new admin_setting_heading('theme_adaptable_alert', get_string('alertsettingsheading', 'theme_adaptable'),
 format_text(get_string('alertdesc', 'theme_adaptable'), FORMAT_MARKDOWN)));
+
+// Alert Course Settings Heading.
+$name = 'theme_adaptable/settingsalertcourse';
+$heading = get_string('alertsettingscourse', 'theme_adaptable');
+$setting = new admin_setting_heading($name, $heading, '');
+$temp->add($setting);
+
+// Alert hidden course.
+$name = 'theme_adaptable/alerthiddencourse';
+$title = get_string('alerthiddencourse', 'theme_adaptable');
+$description = get_string('alerthiddencoursedesc', 'theme_adaptable');
+$default = 'warning';
+$choices = array(
+'disabled' => get_string('alertdisabled', 'theme_adaptable'),
+'info' => get_string('alertinfo', 'theme_adaptable'),
+'warning' => get_string('alertwarning', 'theme_adaptable'),
+'success' => get_string('alertannounce', 'theme_adaptable'));
+$setting = new admin_setting_configselect($name, $title, $description, $default, $choices);
+$setting->set_updatedcallback('theme_reset_all_caches');
+$temp->add($setting);
 
 // Alert General Settings Heading.
 $name = 'theme_adaptable/settingsalertgeneral';
@@ -71,8 +93,8 @@ $setting = new admin_setting_configselect($name, $title, $description, $default,
 $setting->set_updatedcallback('theme_reset_all_caches');
 $temp->add($setting);
 
-// If we don't have an an alertcount yet, default to the preset.
 $alertcount = get_config('theme_adaptable', 'alertcount');
+// If we don't have an an alertcount yet, default to the preset.
 if (!$alertcount) {
     $alertcount = THEME_ADAPTABLE_DEFAULT_ALERTCOUNT;
 }
@@ -105,7 +127,7 @@ for ($alertindex = 1; $alertindex <= $alertcount; $alertindex++) {
     $title = get_string('alerttext', 'theme_adaptable');
     $description = get_string('alerttextdesc', 'theme_adaptable');
     $default = '';
-    $setting = new admin_setting_confightmleditor($name, $title, $description, $default);
+    $setting = new adaptable_setting_confightmleditor($name, $title, $description, $default);
     $temp->add($setting);
 
     // Alert Type 1.

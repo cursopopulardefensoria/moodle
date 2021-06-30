@@ -18,22 +18,35 @@
  * Version details
  *
  * @package    theme_adaptable
- * @copyright 2015 Jeremy Hopkins (Coventry University)
- * @copyright 2015 Fernando Acedo (3-bits.com)
+ * @copyright  2015-2016 Jeremy Hopkins (Coventry University)
+ * @copyright  2015-2017 Fernando Acedo (3-bits.com)
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  *
  */
 
+defined('MOODLE_INTERNAL') || die;
+
+// Include header.
 require_once(dirname(__FILE__) . '/includes/header.php');
 
-$left = theme_adaptable_get_block_side();
+// Set layout.
+$left = $PAGE->theme->settings->blockside;
+$hassidepost = $PAGE->blocks->region_has_content('side-post', $OUTPUT);
+$regions = theme_adaptable_grid($left, $hassidepost);
 
 $hasfootnote = (!empty($PAGE->theme->settings->footnote));
+$hideslidermobile = $PAGE->theme->settings->hideslidermobile;
 
+// Include slider.
 if (!empty($PAGE->theme->settings->sliderenabled)) {
-    echo $OUTPUT->get_frontpage_slider();
+
+    // If it is a mobile and the header is not hidden or it is a desktop then load and show the header.
+    if (((is_mobile()) && ($hideslidermobile == 1)) || (is_desktop())) {
+        echo $OUTPUT->get_frontpage_slider();
+    }
 }
 
+// Infobox 1.
 if (!empty($PAGE->theme->settings->infobox)) {
     if (!empty($PAGE->theme->settings->infoboxfullscreen)) {
         echo '<div id="theinfo">';
@@ -42,19 +55,20 @@ if (!empty($PAGE->theme->settings->infobox)) {
     }
 ?>
             <div class="row-fluid">
-                <?php echo $OUTPUT->get_setting('infobox', 'format_html'); ?>
+<?php
+    echo $OUTPUT->get_setting('infobox', 'format_html');
+?>
             </div>
         </div>
- 
 <?php
 }
 ?>
 
 <?php if (!empty($PAGE->theme->settings->frontpagemarketenabled)) {
     echo $OUTPUT->get_marketing_blocks();
-} ?>
+}
 
-<?php if (!empty($PAGE->theme->settings->frontpageblocksenabled)) { ?>
+if (!empty($PAGE->theme->settings->frontpageblocksenabled)) { ?>
     <div id="frontblockregion" class="container">
         <div class="row-fluid">
             <?php echo $OUTPUT->get_block_regions(); ?>
@@ -62,22 +76,20 @@ if (!empty($PAGE->theme->settings->infobox)) {
     </div>
 <?php
 }
-?>
 
-<?php
+// Infobox 2.
 if (!empty($PAGE->theme->settings->infobox2)) {
     if (!empty($PAGE->theme->settings->infoboxfullscreen)) {
-        echo '<div id="themessage">';
+        echo '<div id="theinfo2">';
     } else {
-        echo '<div id="themessage" class="container">';
+        echo '<div id="theinfo2" class="container">';
     }
 ?>
-
-    <div id="themessage-internal">
         <div class="row-fluid">
-<?php echo $OUTPUT->get_setting('infobox2', 'format_html');; ?>
+<?php
+            echo $OUTPUT->get_setting('infobox2', 'format_html');
+?>
         </div>
-    </div>
 </div>
 <?php
 }
@@ -88,32 +100,18 @@ if (!empty($PAGE->theme->settings->infobox2)) {
      <div id="page-navbar" class="span12">
             <nav class="breadcrumb-button"><?php echo $OUTPUT->page_heading_button(); ?></nav>
             <?php echo $OUTPUT->navbar(); ?>
+
     </div>
-<?php
-if ($left == 1) {
-    echo $OUTPUT->blocks('side-post', 'span3 desktop-first-column');
-}
-
-// Control span to display course tiles.
-if (!isloggedin()) {
-    echo '<section id="region-main" class="span9 desktop-first-column">';
-} else {
-    echo '<section id="region-main" class="span9 desktop-first-column">';
-} ?>
-
-
-<?php
-echo $OUTPUT->course_content_header();
-echo $OUTPUT->main_content();
-echo $OUTPUT->course_content_footer();
-?>
-</section>
-
-<?php
-if ($left == 0) {
-    echo $OUTPUT->blocks('side-post', 'span3');
-}
-?>
+    <section id="region-main" class="<?php echo $regions['content'];?>">
+        <?php
+        echo $OUTPUT->course_content_header();
+        echo $OUTPUT->main_content();
+        echo $OUTPUT->course_content_footer();
+        ?>
+    </section>
+    <?php
+        echo $OUTPUT->blocks('side-post', $regions['blocks']);
+    ?>
 </div>
 
 <?php
@@ -122,9 +120,9 @@ if (is_siteadmin()) {
       <div class="hidden-blocks">
         <div class="row-fluid">
           <h4><?php echo get_string('frnt-footer', 'theme_adaptable') ?></h4>
-          <?php
-            echo $OUTPUT->blocks('frnt-footer');
-          ?>
+            <?php
+            echo $OUTPUT->blocks('frnt-footer', 'span10');
+            ?>
         </div>
       </div>
     <?php
@@ -133,4 +131,5 @@ if (is_siteadmin()) {
 </div>
 
 <?php
+// Include footer.
 require_once(dirname(__FILE__) . '/includes/footer.php');

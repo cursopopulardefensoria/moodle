@@ -18,23 +18,346 @@
  * Version details
  *
  * @package    theme_adaptable
- * @copyright 2015 Jeremy Hopkins (Coventry University)
- * @copyright 2015 Fernando Acedo (3-bits.com)
+ * @copyright  2015 Jeremy Hopkins (Coventry University)
+ * @copyright  2015-2017 Fernando Acedo (3-bits.com)
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  *
  */
 
-require_once($CFG->dirroot.'/blocks/course_overview/locallib.php');
-require_once($CFG->dirroot . "/course/renderer.php");
-require_once($CFG->libdir. '/coursecatlib.php');
+defined('MOODLE_INTERNAL') || die;
 
-/**
+// Load libraries.
+require_once($CFG->dirroot.'/course/renderer.php');
+require_once($CFG->libdir.'/coursecatlib.php');
+require_once($CFG->dirroot.'/message/lib.php');
+require_once($CFG->dirroot.'/course/format/topics/renderer.php');
+require_once($CFG->dirroot.'/course/format/weeks/renderer.php');
+
+trait single_section_page {
+    /**
+     * Output the html for a single section page.
+     *
+     * @param stdClass $course The course entry from DB.
+     * @param array $sections (argument not used).
+     * @param array $mods (argument not used).
+     * @param array $modnames (argument not used).
+     * @param array $modnamesused (argument not used).
+     * @param int $displaysection The section number in the course which is being displayed.
+     */
+    public function print_single_section_page($course, $sections, $mods, $modnames, $modnamesused, $displaysection) {
+        $this->print_single_section_page_content($course, $sections, $mods, $modnames, $modnamesused, $displaysection);
+    }
+
+    /**
+     * Output the html for a single section page.
+     *
+     * @param stdClass $course The course entry from DB.
+     * @param array $sections (argument not used).
+     * @param array $mods (argument not used).
+     * @param array $modnames (argument not used).
+     * @param array $modnamesused (argument not used).
+     * @param boolean $showsectionzero states if section zero is to be shown at the top of the section.
+     * @param int $displaysection The section number in the course which is being displayed.
+     */
+    protected function print_single_section_page_content($course, $sections, $mods, $modnames, $modnamesused, $displaysection,
+        $showsectionzero = 1) {
+        global $PAGE;
+
+        $modinfo = get_fast_modinfo($course);
+        $course = course_get_format($course)->get_course();
+
+        // Can we view the section in question?
+        if (!($sectioninfo = $modinfo->get_section_info($displaysection))) {
+            // This section doesn't exist.
+            print_error('unknowncoursesection', 'error', null, $course->fullname);
+            return;
+        }
+
+        if (!$sectioninfo->uservisible) {
+            if (!$course->hiddensections) {
+                echo $this->start_section_list();
+                echo $this->section_hidden($displaysection, $course->id);
+                echo $this->end_section_list();
+            }
+            // Can't view this section.
+            return;
+        }
+
+        // Copy activity clipboard..
+        echo $this->course_activity_clipboard($course, $displaysection);
+        if ($showsectionzero) {
+            $thissection = $modinfo->get_section_info(0);
+            if ($thissection->summary or !empty($modinfo->sections[0]) or $PAGE->user_is_editing()) {
+                echo $this->start_section_list();
+                echo $this->section_header($thissection, $course, true, $displaysection);
+                echo $this->courserenderer->course_section_cm_list($course, $thissection, $displaysection);
+                echo $this->courserenderer->course_section_add_cm_control($course, 0, $displaysection);
+                echo $this->section_footer();
+                echo $this->end_section_list();
+            }
+        }
+
+        // Start single-section div.
+        echo html_writer::start_tag('div', array('class' => 'single-section'));
+
+        // The requested section page.
+        $thissection = $modinfo->get_section_info($displaysection);
+
+        // Title with section navigation links.
+        $sectionnavlinks = $this->get_nav_links($course, $modinfo->get_section_info_all(), $displaysection);
+        $sectiontitle = '';
+        $sectiontitle .= html_writer::start_tag('div', array('class' => 'section-navigation navigationtitle'));
+
+        // Title attributes.
+        $classes = 'sectionname';
+        if (!$thissection->visible) {
+            $classes .= ' dimmed_text';
+        }
+        $sectionname = html_writer::tag('span', $this->section_title_without_link($thissection, $course));
+        $sectiontitle .= $this->output->heading($sectionname, 3, $classes);
+
+        $sectiontitle .= html_writer::end_tag('div');
+        echo $sectiontitle;
+
+        // Now the list of sections.
+        echo $this->start_section_list();
+        echo $this->section_header($thissection, $course, true, $displaysection);
+
+        // Show completion help icon.
+        $completioninfo = new completion_info($course);
+        echo $completioninfo->display_help_icon();
+
+        echo $this->courserenderer->course_section_cm_list($course, $thissection, $displaysection);
+        echo $this->courserenderer->course_section_add_cm_control($course, $displaysection, $displaysection);
+        echo $this->section_footer();
+        echo $this->end_section_list();
+
+        // Display section bottom navigation.
+        $sectionbottomnav = '';
+        $sectionbottomnav .= html_writer::start_tag('nav', array('class' => 'section_footer'));
+        $sectionbottomnav .= $sectionnavlinks['previous'];
+        $sectionbottomnav .= $sectionnavlinks['next'];
+        $sectionbottomnav .= html_writer::tag('div', '', array('class' => 'clearfix'));
+        $sectionbottomnav .= html_writer::end_tag('nav');
+        $sectionbottomnav .= html_writer::tag('div', $this->section_nav_selection($course, $sections, $displaysection), array('class' => 'jumpnav'));
+        echo $sectionbottomnav;
+
+        // Close single-section div.
+        echo html_writer::end_tag('div');
+    }
+
+    /**
+     * Generate the html for the 'Jump to' menu on a single section page.
+     *
+     * @param stdClass $course The course entry from DB
+     * @param array $sections The course_sections entries from the DB
+     * @param $displaysection the current displayed section number.
+     *
+     * @return string HTML to output.
+     */
+    protected function section_nav_selection($course, $sections, $displaysection) {
+        return $this->section_nav_selection_content($course, $sections, $displaysection);
+    }
+
+    /**
+     * Generate the html for the 'Jump to' menu on a single section page.
+     *
+     * @param stdClass $course The course entry from DB
+     * @param array $sections The course_sections entries from the DB
+     * @param $displaysection the current displayed section number.
+     * @param int $section Section number to start on.
+     *
+     * @return string HTML to output.
+     */
+    protected function section_nav_selection_content($course, $sections, $displaysection, $section = 1) {
+        global $CFG;
+        $o = '';
+        $sectionmenu = array();
+        $sectionmenu[course_get_url($course)->out(false)] = get_string('maincoursepage');
+        $modinfo = get_fast_modinfo($course);
+        while ($section <= $course->numsections) {
+            $thissection = $modinfo->get_section_info($section);
+            $showsection = $thissection->uservisible or !$course->hiddensections;
+            if (($showsection) && ($section != $displaysection) && ($url = course_get_url($course, $section))) {
+                $sectionmenu[$url->out(false)] = $this->shorten_string(get_section_name($course, $section));
+            }
+            $section++;
+        }
+
+        $select = new url_select($sectionmenu, '', array('' => get_string('jumpto')));
+        $select->class = 'jumpmenu';
+        $select->formid = 'sectionmenu';
+        $o .= $this->output->render($select);
+
+        return $o;
+    }
+
+    private function shorten_string($string, $ellipsis = '..') {
+        $maxlen = 50;
+        $string = strip_tags($string);
+        $boundary = $maxlen - strlen($ellipsis);
+        if ((core_text::strlen($string) > $maxlen)) {
+            $shortstring = core_text::substr($string, 0, $boundary) . $ellipsis;
+        } else {
+            $shortstring = $string;
+        }
+        return $shortstring;
+    }
+
+    /**
+     * Generate next/previous section links for naviation.
+     *
+     * @param stdClass $course The course entry from DB.
+     * @param array $sections The course_sections entries from the DB.
+     * @param int $sectionno The section number in the coruse which is being displayed.
+     * @return array associative array with previous and next section link.
+     */
+    protected function get_nav_links($course, $sections, $sectionno) {
+        return $this->get_nav_links_content($course, $sections, $sectionno);
+    }
+
+    /**
+     * Generate next/previous section links for naviation.
+     *
+     * @param stdClass $course The course entry from DB.
+     * @param array $sections The course_sections entries from the DB.
+     * @param int $sectionno The section number in the coruse which is being displayed.
+     * @param int $buffer Control the navigation items for when section 0 is in the grid in the Grid format.
+     * @return array associative array with previous and next section link.
+     */
+    protected function get_nav_links_content($course, $sections, $sectionno, $buffer = 0) {
+        // FIXME: This is really evil and should by using the navigation API.
+        $course = course_get_format($course)->get_course();
+        $canviewhidden = has_capability('moodle/course:viewhiddensections', context_course::instance($course->id))
+            or !$course->hiddensections;
+
+        $links = array('previous' => html_writer::tag('div', '', array('class' => 'previous_section prevnext')),
+            'next' => html_writer::tag('div', '', array('class' => 'next_section prevnext')));
+        $back = $sectionno - 1;
+
+        $hasprev = $hasnext = false;
+        while ($back > $buffer && !$hasprev) {
+            if ($canviewhidden || $sections[$back]->uservisible) {
+                $params = array();
+                $params['class'] = 'previous_section prevnext';
+                if (!$sections[$back]->visible) {
+                    $params['class'] = 'previous_section prevnext dimmed_text';
+                }
+                $previouslink = html_writer::tag('span', '<i class="fa fa-angle-double-left"></i>', array('class' => 'nav_icon'));
+                $sectionname = html_writer::tag('span', get_string('previoussection', 'theme_adaptable'), array('class' => 'nav_guide')) . '<br>';
+                $sectionname .= get_section_name($course, $sections[$back]);
+                $previouslink .= html_writer::tag('span', $sectionname, array('class' => 'text'));
+                $links['previous'] = html_writer::link(course_get_url($course, $back), $previouslink, $params);
+                $hasprev = true;
+            }
+            $back--;
+        }
+
+        $forward = $sectionno + 1;
+        while ($forward <= $course->numsections && !$hasnext) {
+            if ($canviewhidden || $sections[$forward]->uservisible) {
+                $params = array();
+                $params['class'] = 'next_section prevnext';
+                if (!$sections[$forward]->visible) {
+                    $params['class'] = 'next_section prevnext dimmed_text';
+                }
+
+                $sectionname = html_writer::tag('span', get_string('nextsection', 'theme_adaptable'), array('class' => 'nav_guide')) . '<br>';
+                $sectionname .= get_section_name($course, $sections[$forward]);
+                $nextlink = html_writer::tag('span', $sectionname, array('class' => 'text'));
+                $nextlink .= html_writer::tag('span', '<i class="fa fa-angle-double-right"></i>', array('class' => 'nav_icon'));
+                $links['next'] = html_writer::link(course_get_url($course, $forward), $nextlink, $params);
+                $hasnext = true;
+            }
+            $forward++;
+        }
+
+        return $links;
+    }
+}
+
+class theme_adaptable_format_topics_renderer extends format_topics_renderer {
+    use single_section_page;
+}
+
+class theme_adaptable_format_weeks_renderer extends format_weeks_renderer {
+    use single_section_page;
+}
+
+/******************************************************************************************
+ * @copyright 2017 Gareth J Barnard
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later.
+ *
+ * Grid format renderer for the Adaptable theme.
+ */
+
+// Check if GRID is installed before trying to override it.
+if (file_exists("$CFG->dirroot/course/format/grid/renderer.php")) {
+    include_once($CFG->dirroot."/course/format/grid/renderer.php");
+
+    class theme_adaptable_format_grid_renderer extends format_grid_renderer {
+        use single_section_page;
+
+        /**
+         * Generate the html for the 'Jump to' menu on a single section page.
+         *
+         * @param stdClass $course The course entry from DB.
+         * @param array $sections The course_sections entries from the DB.
+         * @param $displaysection the current displayed section number.
+         *
+         * @return string HTML to output.
+         */
+        protected function section_nav_selection($course, $sections, $displaysection) {
+            if (!$this->topic0attop) {
+                $section = 0;
+            } else {
+                $section = 1;
+            }
+            return $this->section_nav_selection_content($course, $sections, $displaysection, $section);
+        }
+
+        /**
+         * Generate next/previous section links for naviation.
+         *
+         * @param stdClass $course The course entry from DB.
+         * @param array $sections The course_sections entries from the DB.
+         * @param int $sectionno The section number in the coruse which is being displayed.
+         * @return array associative array with previous and next section link.
+         */
+        public function get_nav_links($course, $sections, $sectionno) {
+            if (!$this->topic0attop) {
+                $buffer = -1;
+            } else {
+                $buffer = 0;
+            }
+            return $this->get_nav_links_content($course, $sections, $sectionno, $buffer);
+        }
+
+        /**
+         * Output the html for a single section page.
+         *
+         * @param stdClass $course The course entry from DB.
+         * @param array $sections (argument not used).
+         * @param array $mods (argument not used).
+         * @param array $modnames (argument not used).
+         * @param array $modnamesused (argument not used).
+         * @param int $displaysection The section number in the course which is being displayed.
+         */
+        public function print_single_section_page($course, $sections, $mods, $modnames, $modnamesused, $displaysection) {
+            $this->print_single_section_page_content($course, $sections, $mods, $modnames, $modnamesused, $displaysection,
+                $this->topic0attop);
+        }
+    }
+}
+
+/******************************************************************************************
  * @copyright 2015 Jeremy Hopkins (Coventry University)
  * @copyright 2015 Fernando Acedo (3-bits.com)
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  *
- * Core renderers for Adaptable theme based on BCU Theme
+ * Core renderers for Adaptable theme
  */
+
 class theme_adaptable_core_renderer extends core_renderer {
     /** @var custom_menu_item language The language menu if created */
     protected $language = null;
@@ -53,6 +376,42 @@ class theme_adaptable_core_renderer extends core_renderer {
         }
         return parent::render_user_picture($userpicture);
     }
+
+    /**
+     * Return list of the user's courses
+     *
+     * @return array list of courses
+     */
+    public function render_mycourses() {
+        global $USER;
+
+        // Set limit of courses to show in dropdown from setting
+        $coursedisplaylimit = '20';
+        if (!empty($this->page->theme->settings->mycoursesmenulimit)) {
+            $coursedisplaylimit = $this->page->theme->settings->mycoursesmenulimit;
+        }
+
+        $courses = enrol_get_my_courses();
+
+        $sortedcourses = array();
+        $counter = 0;
+
+        // Get courses in sort order into list.
+        foreach ($courses as $course) {
+
+            if (($counter >= $coursedisplaylimit) && ($coursedisplaylimit != 0)) {
+                break;
+            }
+
+            $sortedcourses[] = $course;
+            $counter++;
+
+        }
+
+        return array($sortedcourses);
+    }
+
+
 
     /**
      * Returns the URL for the favicon.
@@ -93,6 +452,96 @@ class theme_adaptable_core_renderer extends core_renderer {
     }
 
     /**
+     * Returns user profile menu
+     */
+    public function user_profile_menu() {
+         global $CFG, $COURSE, $PAGE;
+         $retval = '';
+
+         // False or theme setting name to first array param (not all links have settings).
+         // False or Moodle version number to second param (only some links check version).
+         // URL for link in third param.
+         // Link text in fourth parameter.
+         // Icon fa-icon in fifth param.
+         $usermenuitems = array(
+            array('enablemy', false, $CFG->wwwroot.'/my', get_string('myhome'), 'fa-dashboard'),
+            array('enableprofile', false, $CFG->wwwroot.'/user/profile.php', get_string('viewprofile'), 'fa-user'),
+            array('enableeditprofile', false, $CFG->wwwroot.'/user/edit.php', get_string('editmyprofile'), 'fa-cog'),
+            array('enableprivatefiles', false, $CFG->wwwroot.'/user/files.php', get_string('privatefiles', 'block_private_files'), 'fa-file'),
+            array('enablegrades', false, $CFG->wwwroot.'/grade/report/overview/index.php', get_string('grades'), 'fa-list-alt'),
+            array('enablebadges', false, $CFG->wwwroot.'/badges/mybadges.php', get_string('badges'), 'fa-certificate'),
+            array('enablepref', '2015051100', $CFG->wwwroot.'/user/preferences.php', get_string('preferences'), 'fa-cog'),
+            array('enablenote', false, $CFG->wwwroot.'/message/edit.php', get_string('notifications'), 'fa-paper-plane'),
+            array('enableblog', false, $CFG->wwwroot.'/blog/index.php', get_string('enableblog', 'theme_adaptable'), 'fa-rss'),
+            array('enableposts', false, $CFG->wwwroot.'/mod/forum/user.php', get_string('enableposts', 'theme_adaptable'), 'fa-commenting'),
+            array('enablefeed', false, $CFG->wwwroot.'/report/myfeedback/index.php', get_string('enablefeed', 'theme_adaptable'), 'fa-bullhorn'),
+            array('enablecalendar', false, $CFG->wwwroot.'/calendar/view.php', get_string('pluginname', 'block_calendar_month'), 'fa-calendar'));
+
+            $returnurl = $this->get_current_page_url(true);
+            $context = context_course::instance($COURSE->id);
+
+        if (($CFG->version > 2016120500) && (!is_role_switched($COURSE->id)) && (has_capability('moodle/role:switchroles', $context))) {
+                // TBR $returnurl = str_replace().
+            $url = $CFG->wwwroot.'/course/switchrole.php?id='.$COURSE->id.'&switchrole=-1&returnurl='.$returnurl;
+            $usermenuitems[] = array(false, false, $url, get_string('switchroleto'), 'fa-user-o');
+        }
+
+        if (($CFG->version > 2016120500) && (is_role_switched($COURSE->id))) {
+                $url = $CFG->wwwroot.'/course/switchrole.php?id='.$COURSE->id.'&sesskey='.sesskey().'&switchrole=0&returnurl='.$returnurl;
+                $usermenuitems[] = array(false, false, $url, get_string('switchrolereturn'), 'fa-user-o');
+        }
+
+            $usermenuitems[] = array(false, false, $CFG->wwwroot.'/login/logout.php?sesskey='.sesskey(), get_string('logout'), 'fa-sign-out');
+
+        for ($i = 0; $i < count($usermenuitems); $i++) {
+            $additem = true;
+
+            // If theme setting is specified in array but not enabled in theme settings do not add to menu.
+            $usermenuitem = $usermenuitems[$i][0];
+            if (empty($PAGE->theme->settings->$usermenuitem) && $usermenuitems[$i][0]) {
+                $additem = false;
+            }
+
+            // If item requires version number and moodle is below that version to not add to menu.
+            if ($usermenuitems[$i][1] && $CFG->version < $usermenuitems[$i][1]) {
+                $additem = false;
+            }
+
+            if ($additem) {
+                $retval .= '<li><a href="' . $usermenuitems[$i][2] . '" title="' . $usermenuitems[$i][3] . '">';
+                $retval .= '<i class="fa ' . $usermenuitems[$i][4] . '"></i>' . $usermenuitems[$i][3] . '</a></li>';
+            }
+        }
+        return $retval;
+    }
+
+    /**
+     * Returns current url minus the value of $CFG->wwwroot
+     * Should be replaced with inbuilt Moodle function if one can be found
+     */
+    public function get_current_page_url($stripwwwroot = false) {
+        global $CFG;
+        $pageurl = 'http';
+
+        if ( isset( $_SERVER["HTTPS"] ) && strtolower( $_SERVER["HTTPS"] ) == "on" ) {
+            $pageurl .= "s";
+        }
+
+        $pageurl .= "://";
+
+        if ($_SERVER["SERVER_PORT"] != "80") {
+            $pageurl .= $_SERVER["SERVER_NAME"].":".$_SERVER["SERVER_PORT"].$_SERVER["REQUEST_URI"];
+        } else {
+            $pageurl .= $_SERVER["SERVER_NAME"].$_SERVER["REQUEST_URI"];
+        }
+
+        if ($stripwwwroot) {
+            $pageurl = str_replace($CFG->wwwroot, '', $pageurl);
+        }
+        return $pageurl;
+    }
+
+    /**
      * Returns the user menu
      *
      * @param string $user = null
@@ -111,9 +560,10 @@ class theme_adaptable_core_renderer extends core_renderer {
      * @return string
      */
     public function get_alert_messages() {
-        global $PAGE;
+        global $PAGE, $CFG, $COURSE;
         $alerts = '';
-        $alertcount = get_config('theme_adaptable', 'alertcount');
+
+        $alertcount = $PAGE->theme->settings->alertcount;
 
         for ($i = 1; $i <= $alertcount; $i++) {
             $enablealert = 'enablealert' . $i;
@@ -171,11 +621,23 @@ class theme_adaptable_core_renderer extends core_renderer {
             $alerts = $this->get_alert_message($logininfo, 'warning', $alertindex, 'logedinas') . $alerts;
         }
 
+        if (($CFG->version > 2016120500) && (is_role_switched($COURSE->id))) {
+            $alertindex = $alertcount + 1;
+            $alertkey = "undismissable";
+
+            $returnurl = $this->get_current_page_url(true);
+            $url = $CFG->wwwroot.'/course/switchrole.php?id='.$COURSE->id.'&sesskey='.sesskey().'&switchrole=0&returnurl='.$returnurl;
+
+            $message = get_string('actingasrole', 'theme_adaptable') . '. ';
+            $message .= '<a href="' . $url . '">' . get_string('switchrolereturn') . '</a>';
+            $alerts = $this->get_alert_message($message, 'warning', $alertindex, 'logedinas') . $alerts;
+        }
+
         return $alerts;
     }
 
     /**
-     * Returns formatted alert message for ticker
+     * Returns formatted alert message
      *
      * @param string $text message text
      * @param string $type alert type
@@ -189,12 +651,40 @@ class theme_adaptable_core_renderer extends core_renderer {
 
         global $PAGE;
 
-        $retval = '<div class="customalert alert alert-' . $type . ' fade in" role="alert">';
-        $retval .= '<a href="#" class="close" data-dismiss="alert" data-alertkey="' . $alertkey .
-        '" data-alertindex="' . $alertindex . '" aria-label="close">&times;</a>';
-        $retval .= '<i class="fa fa-' . $this->alert_icon($type) . ' fa-lg"></i>&nbsp';
+        $retval = '<div class="customalert alert alert-dismissable adaptable-alert-' . $type . ' fade in">';
+        $retval .= '<button type="button" class="close" data-dismiss="alert" aria-label="Close" data-alertkey="' . $alertkey.'" data-alertindex="' . $alertindex . '">
+                    <span aria-hidden="true">&times;</span></button>';
+        $retval .= '<i class="fa fa-' . $this->alert_icon($type) . ' fa-lg"></i>&nbsp;';
         $retval .= $text;
         $retval .= '</div>';
+        return $retval;
+    }
+
+    /**
+     * Displays notices to alert teachers of problems with course such as being hidden
+     */
+    public function get_course_alerts() {
+        global $PAGE, $CFG, $COURSE;
+        $retval = '';
+        $warninghidden = $PAGE->theme->settings->alerthiddencourse;
+
+        if ($warninghidden != 'disabled') {
+            if ($this->page->course->visible == 0) {
+                $alerttext = get_string('alerthiddencoursetext-1', 'theme_adaptable')
+                    . '<a href="' . $CFG->wwwroot . '/course/edit.php?id=' . $COURSE->id . '">'
+                    . get_string('alerthiddencoursetext-2', 'theme_adaptable') . '</a>';
+
+                $alerttype = $warninghidden;
+                $alertindex = 'hiddencoursealert-' . $COURSE->id;
+                $alertkey = $alertindex; // These keys are never reset so can use fixed value.
+
+                $retval = $this->get_alert_message($alerttext, $alerttype, $alertindex, $alertkey);
+            }
+        }
+
+        // ToDo - add capability check for editors and add checks for missing summary and course image.
+        // If (empty($COURSE->summary)) { echo "course summary empty"; }.
+
         return $retval;
     }
 
@@ -238,18 +728,43 @@ class theme_adaptable_core_renderer extends core_renderer {
      * @return string
      */
     public function alert_icon($alertclassglobal) {
+        global $PAGE;
         switch ($alertclassglobal) {
             case "success":
-                $alerticonglobal = "bullhorn";
+                $alerticonglobal = $PAGE->theme->settings->alerticonsuccess;
                 break;
             case "info":
-                $alerticonglobal = "info-circle";
+                $alerticonglobal = $PAGE->theme->settings->alerticoninfo;
                 break;
             case "warning":
-                $alerticonglobal = "exclamation-triangle";
+                $alerticonglobal = $PAGE->theme->settings->alerticonwarning;
                 break;
         }
         return $alerticonglobal;
+    }
+
+    /**
+     * Returns html to render Development version alert message in the header
+     *
+     * @return string
+     */
+    public function get_dev_alert() {
+        global $CFG;
+        $output = '';
+
+        if (get_config('theme_adaptable', 'version') < '2016050100') {
+                $output .= '<div id="beta"><h3>';
+                $output .= get_string('beta', 'theme_adaptable');
+                $output .= '</h3></div>';
+        }
+
+        if ($CFG->version < 2015111600) {
+                $output .= '<div id="beta"><center><h3>';
+                $output .= get_string('deprecated', 'theme_adaptable');
+                $output .= '</h3></center></div>';
+        }
+
+        return $output;
     }
 
     /**
@@ -260,9 +775,9 @@ class theme_adaptable_core_renderer extends core_renderer {
     public function get_analytics() {
         global $PAGE;
         $analytics = '';
-        $analyticscount = get_config('theme_adaptable', 'analyticscount');
-        if (isset($PAGE->theme->settings->enableanalytics)) {
+        $analyticscount = $PAGE->theme->settings->enableanalytics;
 
+        if (isset($PAGE->theme->settings->enableanalytics)) {
             for ($i = 1; $i <= $analyticscount; $i++) {
                 $analyticstext = 'analyticstext' . $i;
                 $analyticsprofilefield = 'analyticsprofilefield' . $i;
@@ -302,6 +817,98 @@ EOT;
     }
 
     /**
+     * Returns Piwik code if enabled
+     *
+     * @copyright  2016 COMETE-UPO (Universit\E9 Paris Ouest)
+     *
+     * @return string
+     */
+    public function get_piwik() {
+        global $CFG, $DB, $PAGE, $COURSE, $SITE;
+
+        $enabled = $PAGE->theme->settings->piwikenabled;
+        $imagetrack = $PAGE->theme->settings->piwikimagetrack;
+        $siteurl = $PAGE->theme->settings->piwiksiteurl;
+        $siteid = $PAGE->theme->settings->piwiksiteid;
+        $trackadmin = $PAGE->theme->settings->piwiktrackadmin;
+
+        $enabled = $PAGE->theme->settings->piwikenabled;
+        $imagetrack = $PAGE->theme->settings->piwikimagetrack;
+        $siteurl = $PAGE->theme->settings->piwiksiteurl;
+        $siteid = $PAGE->theme->settings->piwiksiteid;
+        $trackadmin = $PAGE->theme->settings->piwiktrackadmin;
+
+        $analytics = '';
+        if ($enabled && !empty($siteurl) && !empty($siteid) && (!is_siteadmin() || $trackadmin)) {
+            if ($imagetrack) {
+                $addition = '<noscript><p>
+                            <img src="//'.$siteurl.'/piwik.php?idsite='.$siteid.' style="border:0;" alt="" /></p></noscript>';
+            } else {
+                $addition = '';
+            }
+            // Cleanurl.
+            $pageinfo = get_context_info_array($PAGE->context->id);
+            $trackurl = '';
+            // Adds course category name.
+            if (isset($pageinfo[1]->category)) {
+                if ($category = $DB->get_record('course_categories', array('id' => $pageinfo[1]->category))) {
+                    $cats = explode("/", $category->path);
+                    foreach (array_filter($cats) as $cat) {
+                        if ($categorydepth = $DB->get_record("course_categories", array("id" => $cat))) {
+                            $trackurl .= $categorydepth->name.'/';
+                        }
+                    }
+                }
+            }
+            // Adds course full name.
+            if (isset($pageinfo[1]->fullname)) {
+                if (isset($pageinfo[2]->name)) {
+                    $trackurl .= $pageinfo[1]->fullname.'/';
+                } else if ($PAGE->user_is_editing()) {
+                    $trackurl .= $pageinfo[1]->fullname.'/'.get_string('edit', 'local_analytics');
+                } else {
+                    $trackurl .= $pageinfo[1]->fullname.'/'.get_string('view', 'local_analytics');
+                }
+            }
+            // Adds activity name.
+            if (isset($pageinfo[2]->name)) {
+                $trackurl .= $pageinfo[2]->modname.'/'.$pageinfo[2]->name;
+            }
+            $trackurl = '"'.str_replace('"', '\"', $trackurl).'"';
+            // Here we go.
+            $analytics .= '<!-- Start Piwik Code -->'."\n".
+                '<script type="text/javascript">'."\n".
+                '    var _paq = _paq || [];'."\n".
+                '    _paq.push(["setDocumentTitle", '.$trackurl.']);'."\n".
+                '    _paq.push(["trackPageView"]);'."\n".
+                '    _paq.push(["enableLinkTracking"]);'."\n".
+                '    (function() {'."\n".
+                '      var u="//'.$siteurl.'/";'."\n".
+                '      _paq.push(["setTrackerUrl", u+"piwik.php"]);'."\n".
+                '      _paq.push(["setSiteId", '.$siteid.']);'."\n".
+                '      var d=document, g=d.createElement("script"), s=d.getElementsByTagName("script")[0];'."\n".
+                '    g.type="text/javascript"; g.async=true; g.defer=true; g.src=u+"piwik.js"; s.parentNode.insertBefore(g,s);'."\n".
+                '    })();'."\n".
+                '</script>'.$addition."\n".
+                '<!-- End Piwik Code -->'."\n".
+            '';
+        }
+        return $analytics;
+    }
+
+    /**
+     * Returns all tracking methods (Analytics and Piwik)
+     *
+     * @return string
+     */
+    public function get_all_tracking_methods() {
+        $analytics = '';
+        $analytics .= $this->get_analytics();
+        $analytics .= $this->get_piwik();
+        return $analytics;
+    }
+
+    /**
      * Returns HTML to display a "Turn editing on/off" button in a form.
      *
      * @param moodle_url $url The URL + params to send through when clicking the button
@@ -332,17 +939,21 @@ EOT;
      * @return string
      */
     protected function render_user_menu(custom_menu $menu) {
-        global $CFG, $USER, $DB, $OUTPUT;
+        global $CFG, $DB, $PAGE, $OUTPUT;
+
         $addlangmenu = true;
         $addmessagemenu = true;
+        $messagecount = 0;
 
+        // Let's add the Message item in the left.
         if (!isloggedin() || isguestuser()) {
             $addmessagemenu = false;
         }
-        if (!$CFG->messaging) {
+
+        if (!$CFG->messaging || !$PAGE->theme->settings->enablemessagemenu) {
             $addmessagemenu = false;
         } else {
-            // Check whether or not the "popup" message output is enabled
+            // Check whether or not the "popup" message output is enabled.
             // This is after we check if messaging is enabled to possibly save a DB query.
             $popup = $DB->get_record('message_processors', array('name' => 'popup'));
             if (!$popup) {
@@ -351,55 +962,66 @@ EOT;
         }
 
         if ($addmessagemenu) {
-            $messages = $this->get_user_messages();
-            $messagecount = count($messages);
-            // Edit by Matthew Anguige, only display unread popover when unread messages are waiting.
-            if ($messagecount > 0) {
-                $messagemenu = $menu->add('<i class="fa fa-envelope"> </i>' . get_string('messages', 'message') .' '.
-                '<span class="badge">' . $messagecount . '</span>', new moodle_url('#'), get_string('messages', 'message'), 9999);
-            } else {
-                $messagemenu = $menu->add('<i class="fa fa-envelope"> </i>' . get_string('messages', 'message'),
-                                            new moodle_url('/message/index.php'), get_string('messages', 'message'), 9999);
-            }
+            // In Moodle 3.1 or older we display a menu with a count badge.
+            if ($CFG->version < 2016120500) {
+                // First, go to count the number of unread messages.
+                 $messages = $this->get_user_messages();
+                 $messagecount = count($messages);
 
-            foreach ($messages as $message) {
-                if (!isset($message->from) || !isset($message->from->id) || !isset($message->from->firstname)) {
-                    continue;
-                }
-                // Following if to be removed once we are happy with check above correctly limits messages.
-                if (!isset($message->from)) {
-                    $url = $OUTPUT->pix_url('u/f2');
-                    $attributes = array(
-                        'src' => $url
-                    );
-                    $senderpicture = html_writer::empty_tag('img', $attributes);
+                // Edit by Matthew Anguige, only display unread popover when unread messages are waiting.
+                if ($messagecount > 0) {
+                    // If got some message then we add the badge with the pending messages number and no link to the messages page.
+                    $messagemenu = $menu->add('<i class="fa fa-envelope"> </i>' . get_string('messages', 'message') .' '.
+                    '<span class="badge">' . $messagecount . '</span>', new moodle_url('/message/index.php'), get_string('messages', 'message'), 9999);
                 } else {
-                    $senderpicture = new user_picture($message->from);
-                    $senderpicture->link = false;
-                    $senderpicture = $this->render($senderpicture);
+                    // If no pending messages we add only a link to the messages page in the menu.
+                    $messagemenu = $menu->add('<i class="fa fa-envelope"> </i>' . get_string('messages', 'message'),
+                                              new moodle_url('/message/index.php'), get_string('messages', 'message'), 9999);
                 }
 
-                $messagecontent = $senderpicture;
-                $messagecontent .= html_writer::start_tag('span', array('class' => 'msg-body'));
-                $messagecontent .= html_writer::start_tag('span', array('class' => 'msg-title'));
-                $messagecontent .= html_writer::tag('span', $message->from->firstname . ': ', array('class' => 'msg-sender'));
-                $messagecontent .= $message->text;
-                $messagecontent .= html_writer::end_tag('span');
-                $messagecontent .= html_writer::start_tag('span', array('class' => 'msg-time'));
-                $messagecontent .= html_writer::tag('i', '', array('class' => 'icon-time'));
-                $messagecontent .= html_writer::tag('span', $message->date);
-                $messagecontent .= html_writer::end_tag('span');
+                // We display the messages in a pop-up.
+                foreach ($messages as $message) {
+                    if (!isset($message->from) || !isset($message->from->id) || !isset($message->from->firstname)) {
+                        continue;
+                    }
+                    // Following if to be removed once we are happy with check above correctly limits messages.
+                    if (!isset($message->from)) {
+                        $url = $OUTPUT->pix_url('u/f2');
+                        $attributes = array(
+                            'src' => $url
+                        );
+                        $senderpicture = html_writer::empty_tag('img', $attributes);
+                    } else {
+                        $senderpicture = new user_picture($message->from);
+                        $senderpicture->link = false;
+                        $senderpicture = $this->render($senderpicture);
+                    }
 
-                $messagemenu->add($messagecontent, new moodle_url('/message/index.php', array('user1' => $USER->id,
+                    // Let's go to create the message to show in the screen.
+                    $messagecontent = $senderpicture;
+                    $messagecontent .= html_writer::start_tag('span', array('class' => 'msg-body'));
+                    $messagecontent .= html_writer::start_tag('span', array('class' => 'msg-title'));
+                    $messagecontent .= html_writer::tag('span', $message->from->firstname . ': ', array('class' => 'msg-sender'));
+                    $messagecontent .= $message->text;
+                    $messagecontent .= html_writer::end_tag('span');
+                    $messagecontent .= html_writer::start_tag('span', array('class' => 'msg-time'));
+                    $messagecontent .= html_writer::tag('i', '', array('class' => 'icon-time'));
+                    $messagecontent .= html_writer::tag('span', $message->date);
+                    $messagecontent .= html_writer::end_tag('span');
+
+                    $messagemenu->add($messagecontent, new moodle_url('/message/index.php', array('user1' => $USER->id,
                         'user2' => $message->from->id)));
+                }
             }
         }
 
+        // Let's go to create the lang menu if available.
         $langs = get_string_manager()->get_list_of_translations();
         if (count($langs) < 2 || empty($CFG->langmenu) || ($this->page->course != SITEID and !empty($this->page->course->lang))) {
             $addlangmenu = false;
         }
 
+        // And finally let's go to add the custom usermenus.
         $content = html_writer::start_tag('ul', array('class' => 'usermenu2 nav navbar-nav navbar-right'));
         foreach ($menu->get_children() as $item) {
             $content .= $this->render_custom_menu_item($item, 1);
@@ -438,41 +1060,26 @@ EOT;
      * @return array
      */
     protected function get_user_messages() {
-        global $USER, $DB;
+        global $PAGE, $USER, $DB, $CFG;
+
         $messagelist = array();
+        $newmessages = 0;
 
-        $newmessagesql = "SELECT id, smallmessage, useridfrom, useridto, timecreated, fullmessageformat, notification
-                           FROM {message}
-                           WHERE useridto = :userid
-                           AND useridfrom > 2
-                           AND notification <> 1";
+        if ($CFG->version < 2016120500) {
+            // Moodle 3.1 or older.
+            $newmessagesql = "SELECT id, smallmessage, useridfrom, useridto, timecreated, fullmessageformat, notification
+                              FROM {message}
+                              WHERE useridto = :userid
+                              AND notification <> 1";
 
-        $newmessages = $DB->get_records_sql($newmessagesql, array('userid' => $USER->id));
+            if ($PAGE->theme->settings->filteradminmessages) {
+                $newmessagesql .= " AND useridfrom > 2";
 
-        foreach ($newmessages as $message) {
-            $messagelist[] = $this->process_message($message);
-        }
-
-        $showoldmessages = (empty($this->page->theme->settings->showoldmessages)) ? 0 :
-                $this->page->theme->settings->showoldmessages;
-        if ($showoldmessages) {
-            $maxmessages = 5;
-            $readmessagesql = "SELECT id, smallmessage, useridfrom, useridto, timecreated, fullmessageformat, notification
-                                 FROM {message_read}
-                                WHERE useridto = :userid
-                                AND useridfrom > 2
-                                AND notification <> 1
-                             ORDER BY timecreated DESC
-                                LIMIT $maxmessages";
-
-            $readmessages = $DB->get_records_sql($readmessagesql, array('userid' => $USER->id));
-
-            foreach ($readmessages as $message) {
-                $messagelist[] = $this->process_message($message);
+                $newmessages = $DB->get_records_sql($newmessagesql, array('userid' => $USER->id));
             }
-        }
 
-        return $messagelist;
+            return $messagelist;
+        }
     }
 
     /**
@@ -483,6 +1090,7 @@ EOT;
      */
     protected function process_message($message) {
         global $DB, $USER;
+
         $messagecontent = new stdClass();
         if ($message->notification || $message->useridfrom < 1) {
             $messagecontent->text = $message->smallmessage;
@@ -557,21 +1165,20 @@ EOT;
             $target = $PAGE->theme->settings->socialtarget;
         }
 
-        $retval = '<div class="socialbox pull-right">';
+        $retval = '<div class="socialbox">';
+
         $socialiconlist = $PAGE->theme->settings->socialiconlist;
         $lines = explode("\n", $socialiconlist);
 
         foreach ($lines as $line) {
             if (strstr($line, '|')) {
                 $fields = explode('|', $line);
-
-                $val = '<a alt="' . $fields[1];
-                $val .= '" target="' . $target;
+                $val = '<a';
+                $val .= ' target="' . $target;
                 $val .= '" title="' . $fields[1];
                 $val .= '" href="' . $fields[0] . '">';
                 $val .= '<i class="fa ' . $fields[2] . '"></i>';
                 $val .= '</a>';
-
                 $retval .= $val;
             }
         }
@@ -586,13 +1193,14 @@ EOT;
      * @return string
      */
     public function get_news_ticker() {
-        global $PAGE;
+        global $PAGE, $OUTPUT;
         $retval = '';
 
         if (!isset($PAGE->theme->settings->enabletickermy)) {
             $PAGE->theme->settings->enabletickermy = 0;
         }
 
+        // Display ticker if possible.
         if ((!empty($PAGE->theme->settings->enableticker) &&
         $PAGE->theme->settings->enableticker &&
         $PAGE->bodyid == "page-site-index") ||
@@ -603,6 +1211,9 @@ EOT;
             for ($i = 1; $i <= $tickercount; $i++) {
                 $textfield = 'tickertext' . $i;
                 $profilefield = 'tickertext' . $i . 'profilefield';
+
+                format_text($textfield, FORMAT_HTML);
+
                 $access = true;
 
                 if (!empty($PAGE->theme->settings->$profilefield)) {
@@ -613,12 +1224,13 @@ EOT;
                 }
 
                 if ($access) {
-                    $msg .= $PAGE->theme->settings->$textfield;
+                    $msg .= format_text($PAGE->theme->settings->$textfield, FORMAT_HTML, array('trusted' => true));
                 }
             }
-            $msg = preg_replace('#\<[\/]{0,1}(p|ul|div|pre|blockquote)\>#', '', $msg);
+
+            $msg = preg_replace('#\<[\/]{0,1}(li|ul|div|pre|blockquote)\>#', '', $msg);
             if ($msg == '') {
-                $msg = '<li>' . get_string('tickerdefault', 'theme_adaptable') . '</li>';
+                $msg = '<p>' . get_string('tickerdefault', 'theme_adaptable') . '</p>';
             }
 
             $retval .= '<div id="ticker-wrap" class="clearfix container">';
@@ -630,11 +1242,14 @@ EOT;
             $retval .= '</ul>';
             $retval .= '</div>';
         }
+
         return $retval;
     }
 
+
     /**
-     * Renders block regions on front page
+     * Renders block regions on front page (or any other page
+     * if specifying a different value for $settingsname)
      *
      * @param string $settingsname
      */
@@ -646,7 +1261,7 @@ EOT;
         $style = '';
         $adminediting = false;
 
-        if (is_siteadmin() && isset($USER->editing) && $USER->editing == 1) {
+        if (isset($USER->editing) && $USER->editing == 1) {
             $style = '" style="display: block; background: #EEEEEE; min-height: 50px; border: 2px dashed #BFBDBD; margin-top: 5px';
             $adminediting = true;
         }
@@ -668,7 +1283,7 @@ EOT;
 
                     // Moodle does not seem to like numbers in region names so using letter instead.
                     $blockcount ++;
-                    $block = 'frnt-market-' .  chr(96 + $blockcount);
+                    $block = 'frnt-market-' . chr(96 + $blockcount);
 
                     if ($adminediting) {
                         $retval .= '<span style="padding-left: 10px;"> ' . '' . '</span>';
@@ -716,7 +1331,8 @@ EOT;
                     $blockcount ++;
                     $fieldname = $settingname . $blockcount;
                     if (isset($PAGE->theme->settings->$fieldname)) {
-                         $retval .= $OUTPUT->get_setting($fieldname, 'format_html');
+                        // Add HTML format.
+                        $retval .= $OUTPUT->get_setting($fieldname, 'format_html');
                     }
                     $retval .= '</div>';
                 }
@@ -788,9 +1404,11 @@ EOT;
                     $footercontent = 'footer' . $blockcount . 'content';
                     if (!empty($PAGE->theme->settings->$footercontent)) {
                         $output .= '<div class="left-col span' . $val . '">';
-                        $output .= '<h3 title="' . $OUTPUT->get_setting($footerheader, 'format_text') . '">';
-                        $output .= $OUTPUT->get_setting($footerheader, 'format_text');
-                        $output .= '</h3>';
+                        if (!empty($PAGE->theme->settings->$footerheader)) {
+                            $output .= '<h3>';
+                            $output .= $OUTPUT->get_setting($footerheader, 'format_text');
+                            $output .= '</h3>';
+                        }
                         $output .= $OUTPUT->get_setting($footercontent, 'format_html');
                         $output .= '</div>';
                     }
@@ -828,7 +1446,11 @@ EOT;
         for ($i = 1; $i <= $noslides; $i++) {
             $sliderimage = 'p' . $i;
             $sliderurl = 'p' . $i . 'url';
-            $slidercaption = 'p' . $i .'cap';
+
+            if (!empty($PAGE->theme->settings->$sliderimage)) {
+                $slidercaption = 'p' . $i .'cap';
+            }
+
             $closelink = '';
             if (!empty($PAGE->theme->settings->$sliderimage)) {
                 $retval .= '<li>';
@@ -860,21 +1482,26 @@ EOT;
     public function page_navbar($addbutton = false) {
         global $PAGE;
         $retval = '';
+        $hidebreadcrumbmobile = $PAGE->theme->settings->hidebreadcrumbmobile;
 
-        if (!isset($PAGE->theme->settings->enabletickermy)) {
-            $PAGE->theme->settings->enabletickermy = 0;
-        }
-
-        // Do not show navbar on dashboard / my home if news ticker is rendering.
-        if (!($PAGE->theme->settings->enabletickermy && $PAGE->bodyid == "page-my-index")) {
-            $retval = '<div id="page-navbar" class="span12">';
-            if ($addbutton) {
-                $retval .= '<nav class="breadcrumb-button">' . $this->page_heading_button() . '</nav>';
+        // If the device is a mobile and the breadcrumb is not hidden or it is a desktop then load and show the breadcrumb.
+        if (((is_mobile()) && $hidebreadcrumbmobile = 1) || is_desktop()) {
+            if (!isset($PAGE->theme->settings->enabletickermy)) {
+                $PAGE->theme->settings->enabletickermy = 0;
             }
 
-            $retval .= $this->navbar();
-            $retval .= '</div>';
+            // Do not show navbar on dashboard / my home if news ticker is rendering.
+            if (!($PAGE->theme->settings->enabletickermy && $PAGE->bodyid == "page-my-index")) {
+                $retval = '<div id="page-navbar" class="span12">';
+                if ($addbutton) {
+                    $retval .= '<nav class="breadcrumb-button">' . $this->page_heading_button() . '</nav>';
+                }
+
+                $retval .= $this->navbar();
+                $retval .= '</div>';
+            }
         }
+
         return $retval;
     }
 
@@ -886,10 +1513,11 @@ EOT;
      * return string
      */
     public function navbar() {
-        global $COURSE;
+        global $PAGE;
 
         $items = $this->page->navbar->get_items();
-        $breadcrumbseparator = get_config('theme_adaptable', 'breadcrumbseparator');
+        $breadcrumbseparator = $PAGE->theme->settings->breadcrumbseparator;
+
         $breadcrumbs = "";
 
         if (empty($items)) {
@@ -903,11 +1531,17 @@ EOT;
 
             // Text / Icon home.
             if ($i++ == 0) {
-                if (get_config('theme_adaptable', 'breadcrumbhome') == 'icon') {
-                    $breadcrumbs = html_writer::link(new moodle_url('/'),
+                $breadcrumbs .= '<li>';
+
+                if (get_config('theme_adaptable', 'enablehome') && get_config('theme_adaptable', 'enablemyhome')) {
+                    $breadcrumbs = html_writer::tag('i', '', array('class' => 'fa fa-folder-open-o fa-lg'));
+                } else if (get_config('theme_adaptable', 'breadcrumbhome') == 'icon') {
+                    $breadcrumbs .= html_writer::link(new moodle_url('/'),
                                    html_writer::tag('i', '', array('class' => 'fa fa-home fa-lg')));
+                    $breadcrumbs .= '</li>';
                 } else {
-                    $breadcrumbs = html_writer::link(new moodle_url('/'), get_string('home'));
+                    $breadcrumbs .= html_writer::link(new moodle_url('/'), get_string('home'));
+                    $breadcrumbs .= '</li>';
                 }
                 continue;
             }
@@ -919,7 +1553,6 @@ EOT;
 
         return '<ul class="breadcrumb">'.$breadcrumbs.'</ul>';
     }
-
 
 
     /**
@@ -938,11 +1571,6 @@ EOT;
         $performanceinfo = '';
         if (defined('MDL_PERF') || (!empty($CFG->perfdebug) and $CFG->perfdebug > 7)) {
             $perf = get_performance_info();
-
-            // Deprecated function. Display: The use of function error_log() is forbidden.
-            // if (defined('MDL_PERFTOLOG') && !function_exists('register_shutdown_function')) {.
-            // error_log("PERF: " . $perf['txt']);.
-            // }.
 
             if (defined('MDL_PERFTOFOOT') || debugging() || $CFG->perfdebug > 7) {
                 $performanceinfo = theme_adaptable_performance_output($perf);
@@ -971,11 +1599,6 @@ EOT;
         $overridestrings = false;
         $overridetype = 'off';
         $sessttl = 0;
-
-        if (!empty($PAGE->theme->settings->navbarcachetime) && $PAGE->theme->settings->navbarcachetime > 0) {
-            $sessttl = (time() + ($PAGE->theme->settings->navbarcachetime * 60));
-        }
-
         $cache = cache::make('theme_adaptable', 'userdata');
 
         if ($sessttl > 0 && time() <= $cache->get('usernavbarttl')) {
@@ -1049,7 +1672,10 @@ EOT;
                 $branchsort  = 10001;
 
                 $branch = $menu->add($branchlabel, $branchurl, '', $branchsort);
-                list($sortedcourses, $sitecourses, $totalcourses) = block_course_overview_get_sorted_courses();
+
+                // Calls a local method (render_mycourses) to get list of
+                // a user's current courses that they are enrolled on
+                list($sortedcourses) = $this->render_mycourses();
 
                 $icon = '';
 
@@ -1072,9 +1698,9 @@ EOT;
                                 } else { // If not in array add to sub menu item.
                                     if (!isset($parent)) {
                                         $icon = '<i class="fa fa-history"></i> ';
-                                        $parent = $branch->add($icon . $trunc =
-                                            rtrim(mb_strimwidth(format_string(get_string('pastcourses', 'theme_adaptable')),
-                                            0, $mysitesmaxlengthhidden)) . '...', new moodle_url('#'), '', 1000);
+                                        $parent = $branch->add($icon . $trunc = rtrim(
+                                                    mb_strimwidth(format_string(get_string('pastcourses', 'theme_adaptable')),
+                                                    0, $mysitesmaxlengthhidden)) . '...', new moodle_url('#'), '', 1000);
                                     }
                                     $parent->add($trunc = rtrim(mb_strimwidth(format_string($course->fullname),
                                                  0, $mysitesmaxlengthhidden)) . '...',
@@ -1090,8 +1716,7 @@ EOT;
                     foreach ($sortedcourses as $course) {
                         if (!$course->visible && $mysitesvisibility == 'includehidden') {
                             if (empty($parent)) {
-                                $parent = $branch->add($icon . $trunc =
-                                    rtrim(mb_strimwidth(format_string(get_string('hiddencourses', 'theme_adaptable')),
+                                $parent = $branch->add($icon . $trunc = rtrim(mb_strimwidth(format_string(get_string('hiddencourses', 'theme_adaptable')),
                                         0, $mysitesmaxlengthhidden)) . '...',
                                         new moodle_url('#'), '', 2000);
                             }
@@ -1257,65 +1882,69 @@ EOT;
     public function get_logo_title() {
         global $PAGE, $COURSE, $CFG, $SITE;
         $retval = '';
-        $display = $PAGE->theme->settings->sitetitle;
 
-        if ($COURSE->id > 1) {
-            $div = '<div id="titlecontainer" class="pull-left">';
-//            $div = '<div id="coursetitle" class="pull-left">';
-        } else {
-            $div = '<div id="titlecontainer" class="pull-left">';
-        }
+        $hidelogomobile = $PAGE->theme->settings->hidelogomobile;
 
-        $retval .= $div;
-
-        if ($display == 'default') {
-        // Default moodle title.
+        if (((is_mobile()) && ($hidelogomobile == 1)) || (is_desktop())) {
             if (!empty($PAGE->theme->settings->logo)) {
                 // Logo.
                 $retval .= '<div id="logocontainer">';
                 $retval .= "<a href='$CFG->wwwroot'>";
                 $retval .= '<img src=' . $PAGE->theme->setting_file_url('logo', 'logo') . ' alt="logo" id="logo" />';
-                $retval .= '</a></div></div>';
+                $retval .= '</a></div>';
             } else {
-                if ($COURSE->id > 1) {
-                    // Course Title.
+                $retval .= '<div style="height: 20px"></div>';
+            }
+        }
 
-                    switch ($PAGE->theme->settings->enableheading) {
-                        case 'fullname':
-                        // Full Name.
-                        $retval .= '<span id="sitetitle">' . $COURSE->fullname . '</span></div>';
+        $hidecoursetitlemobile = $PAGE->theme->settings->hidecoursetitlemobile;
+
+        // If it is a mobile and the site title/course is not hidden or it is a desktop hen we display the site title / course.
+        if (((is_mobile()) && ($hidecoursetitlemobile == 1)) || (is_desktop())) {
+            // If course id is greater than 1 we display course title.
+            if ($COURSE->id > 1) {
+                switch ($PAGE->theme->settings->enableheading) {
+                    case 'fullname':
+                        // Full Course Name.
+                        $retval .= '<div id="sitetitle">' . format_string($COURSE->fullname) . '</div>';
                         break;
 
-                        case 'shortname':
-                        // Short Name.
-                        $retval .= '<span id="sitetitle">' . $COURSE->shortname . '</span></div>';
+                    case 'shortname':
+                        // Short Course Name.
+                        $retval .= '<div id="sitetitle">' . format_string($COURSE->shortname) . '</div>';
                         break;
 
-                        default: 
+                    default:
                         // None.
-                        $retval .= '<span id="sitetitle"></span></div>';
+                        $retval .= '<div id="sitetitle"></div>';
                         break;
-                    }
-
-
-                } else {
-                    // Site Title.
-                    $retval .= '<span id="sitetitle">' . $SITE->shortname . '</span></div>';
                 }
             }
-        } else {
-        // Custom title.
-            $header = theme_adaptable_remove_site_fullname($PAGE->heading);
 
-            if (!empty($header)) {
-                $header = $PAGE->theme->settings->sitetitletext;
+            // If course id is one we display the site title.
+            if ($COURSE->id == 1) {
+                switch ($PAGE->theme->settings->sitetitle) {
+                    case 'default':
+                        // Default site title.
+                        $retval .= '<div id="sitetitle">' . format_string($SITE->fullname) . '</div>';
+                        break;
+
+                    case 'custom':
+                        // Custom site title.
+                        if (!empty($PAGE->theme->settings->sitetitletext)) {
+                            $header = theme_adaptable_remove_site_fullname($PAGE->theme->settings->sitetitletext);
+                            $sitetitlehtml = $PAGE->theme->settings->sitetitletext;
+                            $header = format_string($header);
+                            $PAGE->set_heading($header);
+
+                            $retval .= '<div id="sitetitle">' . format_text($sitetitlehtml, FORMAT_HTML) . '</div>';
+                        }
+
+                    default:
+                        // None.
+                        break;
+                }
             }
-
-            $PAGE->set_heading($header);
-
-            $retval .= "<a href='$CFG->wwwroot'>";
-            $retval .= '<span>' . $PAGE->theme->settings->sitetitletext . '</span>';
-            $retval .= '</a></div>';
         }
 
         return $retval;
@@ -1328,9 +1957,10 @@ EOT;
      */
     public function get_top_menus() {
         global $PAGE, $COURSE;
-        $menus = '';
-        $retval = '';
+        $template = new stdClass();
+        $menus = array();
         $visibility = true;
+        $nummenus = 0;
 
         if (!empty($PAGE->theme->settings->menuuseroverride)) {
             $visibility = $this->check_menu_user_visibility();
@@ -1352,8 +1982,6 @@ EOT;
                     $logincheck = true;
                     $custommenuitems = '';
                     $access = true;
-                    $pre = '<div class="dropdown pull-right newmenus ' . $class . '">';
-                    $post = '</div>';
 
                     if (empty($PAGE->theme->settings->$requirelogin) || isloggedin()) {
                         if (!empty($PAGE->theme->settings->$fieldsetting)) {
@@ -1366,17 +1994,99 @@ EOT;
                         }
 
                         if (!empty($PAGE->theme->settings->$newmenu) && $access == true) {
+                            $nummenus++;
                             $menu = ($PAGE->theme->settings->$newmenu);
                             $title = ($PAGE->theme->settings->$newmenutitle);
-                            $custommenuitems = $this->parse_custom_menu($menu, $title);
-                            $custommenu = new custom_menu($custommenuitems);
-                            $retval .= $this->render_custom_menu($custommenu, $pre, $post);
+                            $custommenuitems = $this->parse_custom_menu($menu, format_string($title));
+                            $custommenu = new custom_menu($custommenuitems, current_language());
+                            $menus[] = $this->render_overlay_menu($custommenu);
                         }
                     }
                 }
             }
         }
-        return $retval;
+        if ($nummenus == 0) {
+            return '';
+        }
+        $template->rows = array();
+
+        $grid = array(
+            '5' => '3',
+            '6' => '3',
+            '7' => '4',
+            '8' => '4',
+            '9' => '3',
+            '10' => '4',
+            '11' => '4',
+            '12' => '4'
+        );
+        if ($nummenus <= 4) {
+            $row = new stdClass();
+            $row->span = (12 / $nummenus);
+            $row->menus = $menus;
+            $template->rows[] = $row;
+        } else {
+            $numperrow = $grid[$nummenus];
+            $chunks = array_chunk($menus, $numperrow);
+            $menucount = 0;
+            for ($i = 0; $i < $nummenus; $i++) {
+                if ($i % $numperrow == 0) {
+                    $row = new stdClass();
+                    $row->span = (12 / $numperrow);
+                    $row->menus = $chunks[$menucount++];
+                    $template->rows[] = $row;
+                }
+            }
+        }
+        return $this->render_from_template('theme_adaptable/overlaymenu', $template);
+    }
+
+     /**
+      * Render the menu items for the overlay menu
+      *
+      * @param custom_menu $menu
+      * @return array of menus
+      */
+    private function render_overlay_menu(custom_menu $menu) {
+        $template = new stdClass();
+        if (!$menu->has_children()) {
+            return '';
+        }
+        $template->menuitems = '';
+        foreach ($menu->get_children() as $item) {
+            $template->menuitems .= $this->render_overlay_menu_item($item, 0);
+        }
+        return $template;
+    }
+
+    /**
+     * Render the overlay menu items.
+     *
+     * @param custom_menu_item $item
+     * @return string html for item
+     */
+    private function render_overlay_menu_item(custom_menu_item $item, $level = 0) {
+        $content = '';
+        if ($item->has_children()) {
+            $node = new stdClass;
+            $node->title = $item->get_title();
+            $node->text = $item->get_text();
+            $node->class = 'level-' . $level;
+            $node->url = $item->get_url();
+            $content .= $this->render_from_template('theme_adaptable/overlaymenuitem', $node);
+            $level++;
+            foreach ($item->get_children() as $subitem) {
+                $content .= $this->render_overlay_menu_item($subitem, $level);
+            }
+        } else {
+            $node = new stdClass;
+            $node->title = $item->get_title();
+            $node->text = $item->get_text();
+            $node->class = 'level-' . $level;
+            $node->url = $item->get_url();
+            $content .= $this->render_from_template('theme_adaptable/overlaymenuitem', $node);
+        }
+        return $content;
     }
 
     /**
@@ -1615,28 +2325,32 @@ EOT;
         $addlangmenu = true;
         $langs = get_string_manager()->get_list_of_translations();
         if (count($langs) < 2
-            or empty($CFG->langmenu)
-            or ($this->page->course != SITEID and !empty($this->page->course->lang))
-        ) {
-            $addlangmenu = false;
+            || empty($CFG->langmenu)
+            || ($this->page->course != SITEID
+            && !empty($this->page->course->lang))) {
+                $addlangmenu = false;
         }
 
         if ($addlangmenu) {
             $strlang = get_string('language');
             $currentlang = current_language();
+
             if (isset($langs[$currentlang])) {
                 $currentlang = $langs[$currentlang];
             } else {
                 $currentlang = $strlang;
             }
+
             $this->language = $langmenu->add('<i class="fa fa-globe fa-lg"></i><span class="langdesc">'.$currentlang.'</span>',
-                    new moodle_url('#'), $strlang, 100);
+                                             new moodle_url('#'), $strlang, 10000);
+
             foreach ($langs as $langtype => $langname) {
                 $this->language->add($langname, new moodle_url($this->page->url, array('lang' => $langtype)), $langname);
             }
         }
         return $this->render_custom_menu($langmenu);
     }
+
 
     /**
      * Returns html for custom menu
@@ -1680,7 +2394,7 @@ EOT;
             return '';
         }
 
-        $content = '<ul class="nav">';
+        $content = '<ul class="nav navbar-nav">';
         foreach ($menu->get_children() as $item) {
             $content .= $this->render_custom_menu_item($item, 1);
         }
@@ -1815,12 +2529,12 @@ EOT;
     }
 }
 
-/**
+/******************************************************************************************
  * @copyright 2015 Jeremy Hopkins (Coventry University)
  * @copyright 2015 Fernando Acedo (3-bits.com)
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  *
- * Course renderers for Adaptable theme based on BCU Theme
+ * Core Course Renderers for Adaptable theme
  */
 class theme_adaptable_core_course_renderer extends core_course_renderer {
     /**
@@ -1867,8 +2581,7 @@ class theme_adaptable_core_course_renderer extends core_course_renderer {
             $classes .= ' collapsed';
         }
 
-
-// Control span to display course tiles.
+        // Control span to display course tiles.
         if (!isloggedin() || isguestuser()) {
             $spanclass = "span4";
         } else {
@@ -1920,7 +2633,7 @@ class theme_adaptable_core_course_renderer extends core_course_renderer {
                 $icondirection = 'right';
             }
             $arrow = html_writer::tag('span', '', array('class' => 'fa fa-chevron-'.$icondirection));
-            $btn = html_writer::tag('span', get_string('course') . ' ' . $arrow, array('class' => 'coursequicklink'));
+            $btn = html_writer::tag('span', get_string('course', 'theme_adaptable') . ' ' . $arrow, array('class' => 'get_stringlink'));
 
             if (empty($PAGE->theme->settings->covhidebutton)) {
                 $content .= html_writer::link(new moodle_url('/course/view.php',
@@ -2130,10 +2843,11 @@ class theme_adaptable_core_course_renderer extends core_course_renderer {
             return '';
         }
 
-        $courses = block_course_overview_get_sorted_courses();
-        list($sortedcourses, $sitecourses, $totalcourses) = block_course_overview_get_sorted_courses();
-        if (!empty($sortedcourses) || !empty($rcourses) || !empty($rhosts)) {
+        // Calls a local method (render_mycourses) to get list of a user's current courses that they are enrolled on.
+        $courses = $this->render_mycourses();
+        list($sortedcourses) = $this->render_mycourses();
 
+        if (!empty($sortedcourses) || !empty($rcourses) || !empty($rhosts)) {
             $chelper = new coursecat_helper();
             if (count($courses) > $CFG->frontpagecourselimit) {
                 // There are more enrolled courses than we can display, display link to 'My courses'.
@@ -2256,4 +2970,5 @@ class theme_adaptable_core_course_renderer extends core_course_renderer {
         }
         return $content;
     }
+    // End.
 }

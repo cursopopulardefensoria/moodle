@@ -24,6 +24,8 @@
  *
  */
 
+defined('MOODLE_INTERNAL') || die;
+
 // Marketing blocks section.
 $temp = new admin_settingpage('theme_adaptable_frontpage_blocks', get_string('frontpageblocksettings', 'theme_adaptable'));
 
@@ -34,14 +36,14 @@ $name = 'theme_adaptable/infobox';
 $title = get_string('infobox', 'theme_adaptable');
 $description = get_string('infoboxdesc', 'theme_adaptable');
 $default = '';
-$setting = new admin_setting_confightmleditor($name, $title, $description, $default);
+$setting = new adaptable_setting_confightmleditor($name, $title, $description, $default);
 $temp->add($setting);
 
 $name = 'theme_adaptable/infobox2';
 $title = get_string('infobox2', 'theme_adaptable');
 $description = get_string('infobox2desc', 'theme_adaptable');
 $default = '';
-$setting = new admin_setting_confightmleditor($name, $title, $description, $default);
+$setting = new adaptable_setting_confightmleditor($name, $title, $description, $default);
 $temp->add($setting);
 
 $name = 'theme_adaptable/infoboxfullscreen';

@@ -19,16 +19,35 @@
  *
  * @package    theme_adaptable
  * @copyright 2015 Jeremy Hopkins (Coventry University)
- * @copyright 2015 Fernando Acedo (3-bits.com)
+ * @copyright 2015-2017 Fernando Acedo (3-bits.com)
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  *
  */
 
-?>
-<footer id="page-footer">
-<?php
+defined('MOODLE_INTERNAL') || die;
+$hidepagefootermobile = $PAGE->theme->settings->hidepagefootermobile;
 
+// If the device is a mobile and the footer is not hidden or it is a desktop then load and show the footer.
+if (((is_mobile()) && ($hidepagefootermobile == 1)) || (is_desktop())) {
+?>
+
+<footer id="page-footer">
+
+<?php
 echo $OUTPUT->get_footer_blocks();
+
+if ($PAGE->theme->settings->hidefootersocial == 1) { ?>
+        <div class="container">
+            <div class="row-fluid">
+                <div class="span12 pagination-centered">
+<?php
+    echo $OUTPUT->socialicons();
+?>
+                </div>
+            </div>
+        </div>
+
+<?php }
 
 if ($PAGE->theme->settings->moodledocs) {
     $footnoteclass = 'span4';
@@ -36,22 +55,25 @@ if ($PAGE->theme->settings->moodledocs) {
     $footnoteclass = 'span8';
 }
 
-if ($PAGE->theme->settings->showfooterblocks) { ?>
+if ($PAGE->theme->settings->showfooterblocks) {
+?>
     <div class="info container2 clearfix">
         <div class="container">
             <div class="row-fluid">
                 <div class="<?php echo $footnoteclass; ?>">
-                    <?php echo $html->footnote; ?>
+<?php echo $OUTPUT->get_setting('footnote', 'format_html');
+?>
                 </div>
 
 <?php
-    if ($PAGE->theme->settings->moodledocs) {
+if ($PAGE->theme->settings->moodledocs) {
 ?>
                 <div class="span4 helplink">
-<?php echo $OUTPUT->page_doc_link(); ?>
+<?php
+    echo $OUTPUT->page_doc_link(); ?>
                 </div>
 <?php
-    }
+}
 ?>
                 <div class="span4">
                     <?php echo $OUTPUT->standard_footer_html(); ?>
@@ -59,15 +81,20 @@ if ($PAGE->theme->settings->showfooterblocks) { ?>
             </div>
         </div>
     </div>
-    <?php
+<?php
 }
 ?>
 </footer>
+
+<?php
+}
+?>
+
 <a class="back-to-top" href="#top" ><i class="fa fa-angle-up "></i></a>
     <?php echo $OUTPUT->standard_end_of_body_html() ?>
 
 </div>
 <?php echo $PAGE->theme->settings->jssection; ?>
-<?php echo $OUTPUT->get_analytics(); ?>
+<?php echo $OUTPUT->get_all_tracking_methods(); ?>
 </body>
 </html>

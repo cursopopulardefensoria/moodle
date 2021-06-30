@@ -24,9 +24,11 @@
  *
  */
 
+defined('MOODLE_INTERNAL') || die;
 
     $temp = new admin_settingpage('theme_adaptable_blocks', get_string('blocksettings', 'theme_adaptable'));
 
+    // Add icon to the title.
     $name = 'theme_adaptable/blockicons';
     $title = get_string('blockicons', 'theme_adaptable');
     $description = get_string('blockiconsdesc', 'theme_adaptable');
@@ -35,6 +37,7 @@
     $setting->set_updatedcallback('theme_reset_all_caches');
     $temp->add($setting);
 
+    // Colours.
     $name = 'theme_adaptable/blockbackgroundcolor';
     $title = get_string('blockbackgroundcolor', 'theme_adaptable');
     $description = get_string('blockbackgroundcolordesc', 'theme_adaptable');
@@ -48,14 +51,6 @@
     $description = get_string('blockheaderbackgroundcolordesc', 'theme_adaptable');
     $previewconfig = null;
     $setting = new admin_setting_configcolourpicker($name, $title, $description, '#FFFFFF', $previewconfig);
-    $setting->set_updatedcallback('theme_reset_all_caches');
-    $temp->add($setting);
-
-    $name = 'theme_adaptable/blockheadercolor';
-    $title = get_string('blockheadercolor', 'theme_adaptable');
-    $description = get_string('blockheadercolordesc', 'theme_adaptable');
-    $previewconfig = null;
-    $setting = new admin_setting_configcolourpicker($name, $title, $description, '#009688', $previewconfig);
     $setting->set_updatedcallback('theme_reset_all_caches');
     $temp->add($setting);
 
@@ -91,6 +86,7 @@
     $setting->set_updatedcallback('theme_reset_all_caches');
     $temp->add($setting);
 
+    // Borders.
     $name = 'theme_adaptable/blockheaderbordertopstyle';
     $title = get_string('blockheaderbordertopstyle', 'theme_adaptable');
     $description = get_string('blockheaderbordertopstyledesc', 'theme_adaptable');

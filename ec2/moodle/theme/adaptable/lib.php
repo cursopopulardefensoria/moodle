@@ -18,11 +18,13 @@
  * Version details
  *
  * @package    theme_adaptable
- * @copyright 2015 Jeremy Hopkins (Coventry University)
- * @copyright 2015 Fernando Acedo (3-bits.com)
+ * @copyright  2015-2016 Jeremy Hopkins (Coventry University)
+ * @copyright  2015-2016 Fernando Acedo (3-bits.com)
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  *
  */
+
+defined('MOODLE_INTERNAL') || die;
 
 define('THEME_ADAPTABLE_DEFAULT_ALERTCOUNT', '1');
 define('THEME_ADAPTABLE_DEFAULT_ANALYTICSCOUNT', '1');
@@ -78,6 +80,8 @@ function theme_adaptable_process_css($css, $theme) {
         '[[setting:activebreadcrumb]]' => '#f5f5f5',
         '[[setting:breadcrumbseparator]]' => 'angle-right',
         '[[setting:loadingcolor]]' => '#f44336',
+        '[[setting:messagepopupbackground]]' => '#fff000',
+        '[[setting:messagepopupcolor]]' => '#333333',
         '[[setting:footerbkcolor]]' => '#424242',
         '[[setting:footertextcolor]]' => '#ffffff',
         '[[setting:footertextcolor2]]' => '#ffffff',
@@ -87,11 +91,12 @@ function theme_adaptable_process_css($css, $theme) {
         '[[setting:headertextcolor]]' => '#ffffff',
         '[[setting:headertextcolor2]]' => '#ffffff',
         '[[setting:msgbadgecolor]]' => '#E53935',
-        '[[setting:blockheadercolor]]' => '#009688',
         '[[setting:blockbackgroundcolor]]' => '#FFFFFF',
         '[[setting:blockheaderbackgroundcolor]]' => '#FFFFFF',
         '[[setting:blockbordercolor]]' => '#59585D',
         '[[setting:blockregionbackgroundcolor]]' => 'transparent',
+        '[[setting:selectiontext]]' => '#000000',
+        '[[setting:selectionbackground]]' => '#eeff41',
         '[[setting:marketblockbordercolor]]' => '#e8eaeb',
         '[[setting:marketblocksbackgroundcolor]]' => 'transparent',
         '[[setting:blocklinkcolor]]' => '#009688',
@@ -130,6 +135,7 @@ function theme_adaptable_process_css($css, $theme) {
         '[[setting:topmenufontsize]]' => '14px',
         '[[setting:menubkcolor]]' => '#ffffff',
         '[[setting:menufontcolor]]' => '#444444',
+        '[[setting:menuhovercolor]]' => '#b2dfdb',
         '[[setting:menubordercolor]]' => '#80cbc4',
         '[[setting:mobilemenubkcolor]]' => '#F9F9F9',
         '[[setting:mobilemenufontcolor]]' => '#000000',
@@ -155,8 +161,10 @@ function theme_adaptable_process_css($css, $theme) {
         '[[setting:socialsize]]' => '32px',
         '[[setting:socialsizemobile]]' => '22px',
         '[[setting:mobile]]' => '22',
+        '[[setting:hideslidermobile]]' => '1',
         '[[setting:socialpaddingtop]]' => '1.8%',
         '[[setting:fontname]]' => 'Open Sans',
+        '[[setting:fontsize]]' => '95%',
         '[[setting:fontheadername]]' => 'Roboto Slab',
         '[[setting:fontcolor]]' => '#333333',
         '[[setting:fontheadercolor]]' => '#333333',
@@ -166,9 +174,6 @@ function theme_adaptable_process_css($css, $theme) {
         '[[setting:fonttitleweight]]' => '400',
         '[[setting:fonttitlesize]]' => '48px',
         '[[setting:fonttitlecolor]]' => '#FFFFFF',
-        '[[setting:fonttitlenamecourse]]' => 'Audiowide',
-        '[[setting:fonttitleweightcourse]]' => '48px',
-        '[[setting:fonttitlesizecourse]]' => '48px',
         '[[setting:fonttitlecolorcourse]]' => '#FFFFFF',
         '[[setting:sitetitlepaddingtop]]' => '0px',
         '[[setting:sitetitlepaddingleft]]' => '0px',
@@ -176,26 +181,27 @@ function theme_adaptable_process_css($css, $theme) {
         '[[setting:coursetitlepaddingleft]]' => '0px',
         '[[setting:searchboxpaddingtop]]' => '16px',
         '[[setting:pageheaderheight]]' => '72px',
+        '[[setting:emoticonsize]]' => '16px',
         '[[setting:fullscreenwidth]]' => '98%',
         '[[setting:coursetitlemaxwidth]]' => '50%',
         '[[setting:sitetitlemaxwidth]]' => '50%',
         '[[setting:coursetitlepaddingtop]]' => '0px',
-        '[[setting:hidebreadcrumbmobile]]' => '',
-        '[[setting:hidepagefootermobile]]' => '',
-        '[[setting:hidealertsmobile]]' => '',
-        '[[setting:hidesocialmobile]]' => '',
+        '[[setting:hidebreadcrumbmobile]]' => 1,
+        '[[setting:hidepagefootermobile]]' => 0,
+        '[[setting:hidealertsmobile]]' => 0,
+        '[[setting:hidesocialmobile]]' => 0,
         '[[setting:socialboxpaddingtopmobile]]' => '',
         '[[setting:socialboxpaddingbottommobile]]' => '',
-        '[[setting:hidecoursetitlemobile]]' => '',
-        '[[setting:hidelogomobile]]' => '',
-        '[[setting:hideheadermobile]]' => '',
+        '[[setting:hidefootersocial]]' => 1,
+        '[[setting:hidecoursetitlemobile]]' => 0,
+        '[[setting:hidelogomobile]]' => 0,
+        '[[setting:hideheadermobile]]' => 0,
         '[[setting:enableheading]]' => 'fullname',
         '[[setting:breadcrumbtitle]]' => 'shortname',
         '[[setting:enableavailablecourses]]' => 'display',
         '[[setting:enableticker]]' => true,
         '[[setting:enabletickermy]]' => true,
         '[[setting:tickerwidth]]' => '',
-        '[[mysitesmaxlength]]' => '30',
         '[[setting:socialwallbackgroundcolor]]' => '#FFFFFF',
         '[[setting:socialwallsectionradius]]' => '6px',
         '[[setting:socialwallbordertopstyle]]' => 'solid',
@@ -203,6 +209,18 @@ function theme_adaptable_process_css($css, $theme) {
         '[[setting:socialwallbordercolor]]' => '#009688',
         '[[setting:socialwallactionlinkcolor]]' => '#009688',
         '[[setting:socialwallactionlinkhovercolor]]' => '#009688',
+        '[[setting:fontblockheaderweight]]' => '400',
+        '[[setting:fontblockheadersize]]' => '28px',
+        '[[setting:fontblockheadercolor]]' => '#009688',
+        '[[setting:alertcolorinfo]]' => '#3a87ad',
+        '[[setting:alertbackgroundcolorinfo]]' => '#d9edf7',
+        '[[setting:alertbordercolorinfo]]' => '#bce8f1',
+        '[[setting:alertcolorsuccess]]' => '#468847',
+        '[[setting:alertbackgroundcolorsuccess]]' => '#dff0d8',
+        '[[setting:alertbordercolorsuccess]]' => '#d6e9c6',
+        '[[setting:alertcolorwarning]]' => '#8a6d3b',
+        '[[setting:alertbackgroundcolorwarning]]' => '#fcf8e3',
+        '[[setting:alertbordercolorwarning]]' => '#fbeed5',
     );
 
     // Get all the defined settings for the theme and replace defaults.
@@ -267,20 +285,19 @@ function theme_adaptable_set_tilesshowallcontacts($css, $display) {
 }
 
 /**
- * Set user prefernces for zoom (show / hide block) function
+ * Get the user preference for the zoom (show / hide block) function.
+ */
+function theme_adaptable_get_zoom() {
+    return get_user_preferences('theme_adaptable_zoom', '');
+}
+
+/**
+ * Set user preferences for zoom (show / hide block) function
  * @param moodle_page $page
  * @return void
  */
 function theme_adaptable_initialise_zoom(moodle_page $page) {
     user_preference_allow_ajax_update('theme_adaptable_zoom', PARAM_TEXT);
-    $page->requires->yui_module('moodle-theme_adaptable-zoom', 'M.theme_adaptable.zoom.init', array());
-}
-
-/**
- * Get the user preference for the zoom (show / hide block) function.
- */
-function theme_adaptable_get_zoom() {
-    return get_user_preferences('theme_adaptable_zoom', '');
 }
 
 /**
@@ -290,7 +307,6 @@ function theme_adaptable_get_zoom() {
  */
 function theme_adaptable_initialise_full(moodle_page $page) {
     user_preference_allow_ajax_update('theme_adaptable_full', PARAM_TEXT);
-    $page->requires->yui_module('moodle-theme_adaptable-full', 'M.theme_adaptable.full.init', array());
 }
 
 /**
@@ -308,18 +324,6 @@ function theme_adaptable_get_full() {
 function theme_adaptable_get_alertkey($alertindex) {
     user_preference_allow_ajax_update('theme_adaptable_alertkey' . $alertindex, PARAM_TEXT);
     return get_user_preferences('theme_adaptable_alertkey' . $alertindex, '');
-}
-
-/**
- * Get user preference for side block
- * Note: does not seem to be called / used within theme, may need to be removed
- */
-function theme_adaptable_get_block_side() {
-    static $theme;
-    if (empty($theme)) {
-        $theme = theme_config::load('adaptable');
-    }
-    return get_user_preferences('theme_adaptable_block_side', $theme->settings->blockside);
 }
 
 /**
@@ -480,7 +484,7 @@ function theme_adaptable_performance_output($param) {
 function theme_adaptable_page_init(moodle_page $page) {
     global $CFG;
     $page->requires->jquery();
-    // REMOVED: Deprecated function    error_log($CFG->version); ???
+    // REMOVED: Deprecated function: error_log($CFG->version).
     if ($CFG->version < 2015051100) {
         $page->requires->jquery_plugin('bootstrap', 'theme_adaptable');
         $page->requires->jquery_plugin('dropdown', 'theme_adaptable');
@@ -491,6 +495,7 @@ function theme_adaptable_page_init(moodle_page $page) {
     $page->requires->jquery_plugin('ticker', 'theme_adaptable');
     $page->requires->jquery_plugin('easing', 'theme_adaptable');
     $page->requires->jquery_plugin('adaptable', 'theme_adaptable');
+
 }
 
 /**
@@ -506,4 +511,59 @@ function theme_adaptable_remove_site_fullname($heading) {
     $header = preg_replace("/^".$SITE->fullname."/", "", $heading);
 
     return $header;
+}
+
+/**
+ * Generate theme grid.
+ * @param int $left
+ * @param bool $hassitepost
+ */
+function theme_adaptable_grid($left, $hassitepost) {
+    if ($hassitepost) {
+        if ($left) {
+            $regions = array('content' => 'span9 pull-right');
+            $regions['blocks'] = 'span3 desktop-first-column';
+        } else {
+            $regions = array('content' => 'span9 desktop-first-column');
+            $regions['blocks'] = 'span3';
+        }
+    } else {
+        $regions = array('content' => 'span12');
+        $regions['blocks'] = 'empty';
+        return $regions;
+    }
+
+    if ('rtl' === get_string('thisdirection', 'langconfig')) {
+        if ($left) {
+            $regions = array('content' => 'span9 desktop-first-column');
+            $regions['blocks'] = 'span3';
+        } else {
+            $regions = array('content' => 'span9 pull-right');
+            $regions['blocks'] = 'span3 desktop-first-column';
+        }
+    }
+    return $regions;
+}
+
+/**
+ * Detect device.
+ */
+function is_desktop() {
+    $useragent = $_SERVER['HTTP_USER_AGENT'];
+    return stripos($useragent, 'mobile') === false && stripos($useragent, 'tablet') === false && stripos($useragent, 'ipad') === false;
+}
+
+function is_tablet() {
+    $useragent = $_SERVER['HTTP_USER_AGENT'];
+    return stripos($useragent, 'tablet') !== false || stripos($useragent, 'tab') !== false;
+}
+
+function is_ipad() {
+    $useragent = $_SERVER['HTTP_USER_AGENT'];
+    return stripos($useragent, 'ipad') !== false;
+}
+
+function is_mobile() {
+    $useragent = $_SERVER['HTTP_USER_AGENT'];
+    return stripos($useragent, 'mobile') !== false || stripos($useragent, 'nokia') !== false || stripos($useragent, 'phone') !== false;
 }

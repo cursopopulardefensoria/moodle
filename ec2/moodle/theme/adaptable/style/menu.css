@@ -1,6 +1,37 @@
+/*
+* This file is part of Moodle - http://moodle.org/
+*
+* Moodle is free software: you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* Moodle is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+*
+*
+* Adaptable Menu Style sheet
+*
+* @package    theme_adaptable
+* @copyright  2015-2016 Jeremy Hopkins (Coventry University)
+* @copyright  2015-2017 Fernando Acedo (3-bits.com)
+* @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+*
+*/
+
 #navwrap {
     clear: both;
     border-bottom: 3px solid [[setting:menubordercolor]];
+}
+#navwrap.affix {
+    top: 0;
+    width: 100%;
+    z-index: 1010;
 }
 
 .navbar {
@@ -8,7 +39,7 @@
     float: none;
     margin-bottom: 0;
     min-width: 40%;
-    margin-top: 0px;
+    margin-top: 0;
     margin-left: -20px;
 }
 
@@ -16,15 +47,15 @@
     background-color: transparent;
     background-image: none;
     background-repeat: repeat-x;
-    border: 0px solid #D4D4D4;
-    border-radius: 0px 0px 0px 0px;
+    border: 0;
+    border-radius: 0;
     box-shadow: none;
     min-height: 40px;
-    padding-left: 0px;
-    padding-right: 0px;
+    padding-left: 0;
+    padding-right: 0;
     filter: none;
-    border-top: 0px solid #9E1B12;
-    border-bottom: 0px solid #9E1B12;
+    border-top: 0;
+    border-bottom: 0;
     box-shadow: none;
 }
 
@@ -32,19 +63,19 @@
     color: [[setting:menufontcolor]] !important;
     line-height: 40px;
     float: none;
-    padding: 0px [[setting:menufontpadding]] 0px [[setting:menufontpadding]];
+    padding: 0 [[setting:menufontpadding]] 0 [[setting:menufontpadding]];
     text-decoration: none;
     text-shadow: none;
     font-weight: 400;
     font-size: [[setting:menufontsize]];
     text-transform: none;
-    border-right: 0px solid rgba(0,0,0, .2);
-    background: transparent !important;
+    border-right: 0;
+    background-color: transparent !important;
 }
 
 .navbar .nav > li > a:hover {
     color: [[setting:menufontcolor]];
-    background-color: none;
+    background-color: [[setting:menuhovercolor]] !important;
     text-decoration: none;
 }
 
@@ -53,7 +84,7 @@
 }
 
 .navbar .dropdown-submenu .dropdown-toggle{
-    height: 18px;
+    height: 28px;
 }
 
 .navbar .nav li.dropdown.open > .dropdown-toggle,
@@ -61,44 +92,46 @@
 .navbar .nav li.dropdown.open.active > .dropdown-toggle {
     background-color: transparent;
     color: #fff;
-     font-size: [[setting:menufontsize]];
+    font-size: [[setting:menufontsize]];
 }
 
-.navbar .btn-navbar, .navbar .btn-navbar:hover, .navbar .btn-navbar:active {
-    background-color:#001e3c;
-    background: #001e3c !Important;
+.navbar .btn-navbar,
+.navbar .btn-navbar:hover,
+.navbar .btn-navbar:active {
+    background-color: #001e3c;
+    background: #001e3c !important;
 }
 
 .navbar .pull-right a {
     padding: 4px 15px;
-    border-left: 0px solid rgba(255,255,255, .2);
+    border-left: 0;
 }
 
 .navbar .nav > li > .dropdown-menu:before, .navbar .nav > li > .dropdown-menu:after {
     display: none;
 }
 
-.dropdown-toggle{
-    height: 30px;
+.dropdown-toggle a {
+    height: 38px !important;
 }
 
 .dropdown-menu {
     border: 1px solid #c0c0c0;
     border-radius: 0;
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.176);
+    box-shadow: 0 6px 12px #000;
     font-size: [[setting:menufontsize]];
     top: 40px;
     background-clip: padding-box;
-    background-color: #ffffff;
+    background-color: #fff;
     display: none;
     float: right;
     list-style: outside none none;
-    margin: 2px 0 0;
+    margin: 2px 0;
     padding: 5px 0;
     position: absolute;
     right: 0;
-    min-width: 250px;
-    top: 100%;
+    min-width: 200px;
+    top: 26px;
     z-index: 1000;
     border-radius: 6px;
 }
@@ -109,21 +142,21 @@
 }
 
 .nav .dropdown-menu li a {
-    border-bottom: 1px solid #EEEEEE;
-    color: #687074;
+    color: [[setting:linkcolor]] !important;
     font-size: 13px;
     font-weight: 400;
     padding: 6px 10px;
-    border-bottom-width: 1px !important;
+    border-bottom: 1px !important;
 }
 
-.nav .dropdown-menu li a:hover, .navbar .nav > li > a:hover {
-    background: rgba(255,255,255,.1);
+.nav .dropdown-menu li a:hover,
+.navbar .nav > li > a:hover {
+    background-color: #fff;
     color: #333;
 }
 
 .dropdown-submenu:hover > a, .dropdown-submenu:focus > a {
-    background: rgba(255,255,255,.1);
+    background-color: #fff;
 }
 
 .dropdown-submenu>.dropdown-menu {
@@ -131,62 +164,32 @@
     left: 100%;
     margin-top: -6px;
     margin-left: -1px;
-    border-radius: 6px; !important
+    border-radius: 6px !important;
 }
 
-@media only screen and (min-width : 1068px) {
-    /*on hover only for large screens adjusted to exclude ipad portrait*/
-    .dropdown-menu .sub-menu {
-        left: 100%;
-        position: absolute;
-        top: -10px;
-        visibility: hidden;
-        margin-top: -1px;
-    }
-
-    .newmenus .dropdown-menu {
-        left: 0%;
-        position: absolute;
-        visibility: hidden;
-        margin-top: 0px;
-    }
-
-    .dropdown-submenu>.dropdown-menu {
-        display: none;
-    }
-
-    .dropdown-menu li:hover .sub-menu, .newmenus:hover .dropdown-menu {
-        visibility: visible;
-    }
-
-    .dropdown:hover>.dropdown-menu {
-        display: block;
-    }
-    /*end on hover hack */
-}
 
 .nav-tabs .dropdown-menu, .nav-pills .dropdown-menu, .navbar .dropdown-menu {
     margin-top: 0;
 }
 
 .navbar .nav > li:last-child > a {
-  border-right: 0px !important;
+    border-right: 0 !important;
 }
 
 .dropdown .fa.fa-briefcase {
-  padding-right: 4px;
+    padding-right: 4px;
 }
 
 .navbar .btn, .navbar .btn-group {
-  margin-top: 3px;
+    margin-top: 3px;
 }
 
-/*new menus */
+/* New menus */
 .newmenus {
-  position: relative;
-  margin-left: 20px;
-  font-size: [[setting:topmenufontsize]];
-  height:26px;
+    position: relative;
+    margin-left: 20px;
+    font-size: [[setting:topmenufontsize]];
+    height: 26px;
 }
 
 .newmenus .dropdown-menu .dropdown-menu {
@@ -194,8 +197,8 @@
 }
 
 .newmenus .dropdown-toggle {
-  color: [[setting:headertextcolor]];
-  background: transparent !important;
+    color: [[setting:headertextcolor]] !important;
+    background-color: transparent !important;
 }
 
 .newmenus .dropdown-menu li a {
@@ -206,66 +209,23 @@
 }
 
 .newmenus .dropdown-menu li:hover a {
-  background: #eee;
+    background-color: #eee;
 }
 
 .newmenus .dropdown-toggle:hover, .newmenus .dropdown-toggle:active, .pull-left .usermenu2.nav a:hover {
-  background-color: transparent !important;
+    background-color: transparent !important;
 }
 
 .newmenus .dropdown-toggle::after {
-  font-family:FontAwesome;
-margin-left:5px;
-content:"\f107";
-font-weight: normal;
-color: [[setting:headertextcolor]];
+    font-family:FontAwesome;
+    margin-left:5px;
+    content:"\f107";
+    font-weight: normal;
+    color: [[setting:headertextcolor]];
 }
 
 .newmenus .dropdown-menu .dropdown-toggle::after {
-  color: transparent;
-}
-
-@media (max-width: 979px) {
-  .hbl, .sbl, .hbll, .sbll {
-            display: none !important;
-  }
-
-  .navbar .dropdown-toggle{
-    height: 38px;
-  }
-
-  .nav-collapse .nav {
-    width:100%;
-    margin-left: 0px !important;
-  }
-
-  #navwrap {
-            border-bottom: 0;
-  }
-
-  #page-header a img {
-            margin: 0 auto;
-            float: none;
-            display: block;
-  }
-  .nav .dropdown-menu li a {
-    color: [[setting:menufontcolor]];
-  }
-
-  .nav-collapse.active{
-    background: [[setting:mobilemenubkcolor]];
-    height: auto;
-    top: 6px;
-    padding-bottom:4px;
-  }
-
-  .nav-collapse.active > .nav > li > a, .nav-collapse.active > .nav .dropdown-menu li > a {
-    color:[[setting:mobilemenufontcolor]] !important;
-  }
-
-  #edittingbutton {
-    margin-left:10px;
-  }
+    color: transparent;
 }
 
 .container-fluid {
@@ -278,14 +238,72 @@ color: [[setting:headertextcolor]];
     height: 100%;
 }
 
-@media (max-width: 990px) {
-    .menutitle {
-        float: none;
-    }
+/* The Overlay (background) */
+.overlaymenu {
+    height: 0;
+    width: 100%;
+    position: fixed;
+    z-index: 1090;
+    left: 0;
+    top: 0;
+    background-color: rgb(0,0,0); /* Black fallback color */
+    background-color: rgba(0,0,0, 0.9); /* Black w/opacity */
+    overflow-x: hidden; /* Disable horizontal scroll */
+    transition: 0.5s; /* 0.5 second transition effect to slide in or slide down the overlay (height or width, depending on reveal) */
+}
+.overlaymenu.open {
+    height: 100%;
 }
 
-@media (max-width: 768px) {
-  .newmenu1, .newmenu2, .newmenu3, .newmenu4, .newmenu5, .newmenu6, .newmenu7, .newmenu8, .newmenu9, .newmenu10, .newmenu11, .newmenu12, .newmenu13, .newmenu14, .newmenu15, .newmenu16[[setting:hidepagefootermobile]][[setting:hidebreadcrumbmobile]][[setting:hidealertsmobile]][[setting:hidesocialmobile]][[setting:hideheadermobile]][[setting:hidelogomobile]][[setting:hidecoursetitlemobile]] {
-      display: none;
-  }
+.overlaymenu .overlayclosebtn {
+    position: absolute;
+    top: 20px;
+    right: 45px;
+}
+
+.overlay-content {
+    position: relative;
+    top: 5%;
+    width: 100%;
+    margin-top: 30px;
+}
+
+.overlay-content li > a {
+    padding: 8px;
+    text-decoration: none;
+    font-size: 1.5em;
+    color: [[setting:headertextcolor]] !important;
+    display: block;
+    transition: 0.3s; /* Transition effects on hover (color) */
+}
+
+.overlay-content ul.overlaylist {
+    list-style: none;
+    text-align: left;
+    max-width: 90%;
+    margin: 0 auto 30px;
+}
+.overlay-content ul.overlaylist .level-0 a {
+    font-size: 2em;
+    margin-bottom: 1em;
+}
+
+.overlay-content ul.overlaylist .level-2 a:before {
+    content: "-";
+    margin-right: 15px;
+}
+.overlay-content ul.overlaylist .level-3 a:before {
+    content: ".";
+    margin-right: 15px;
+    margin-left: 15px;
+}
+
+/* When the height of the screen is less than 450 pixels, change the font-size of the links and position the close button again, so they don't overlap */
+@media screen and (max-height: 450px) {
+    .overlaymenu a {font-size: 20px}
+    .overlaymenu .closebtn {
+        font-size: 40px;
+        top: 15px;
+        right: 35px;
+    }
 }
