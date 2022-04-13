@@ -3,7 +3,7 @@
     "private": true,
     "description": "Moodle",
     "devDependencies": {
-        "async": "^1.5.2",
+        "async": "^3.2.2",
         "eslint": "2.13.1",
         "grunt": "0.4.5",
         "grunt-contrib-jshint": "0.11.3",
